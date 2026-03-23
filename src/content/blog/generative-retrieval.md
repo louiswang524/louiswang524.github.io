@@ -21,7 +21,7 @@ Generative retrieval sidesteps these by collapsing the pipeline: given a user's 
 
 ## HSTU: The Architecture That Changed the Game
 
-Meta's **HSTU (Hierarchical Sequential Transduction Unit)**, published in 2024, is the most influential industrial generative retrieval architecture to date. It powers Meta's Reels recommendation at billion-user scale.
+Meta's **HSTU (Hierarchical Sequential Transduction Unit)** [[paper]](https://arxiv.org/abs/2402.17152), published in 2024, is the most influential industrial generative retrieval architecture to date. It powers Meta's Reels recommendation at billion-user scale.
 
 The core insight is that recommendation can be framed as a sequence-to-sequence problem. A user's interaction history — watched videos, liked posts, search queries — forms an input sequence. The model generates the next recommended item identifier as output.
 
@@ -37,7 +37,7 @@ The results Meta reported were striking: HSTU outperformed their previous retrie
 
 ## OneRec: Kuaishou's End-to-End Generative Recommender
 
-While Meta's HSTU focuses on retrieval, Kuaishou (the Chinese short-video platform) went further with **OneRec** — an attempt to unify retrieval, ranking, and re-ranking into a single generative model trained end-to-end.
+While Meta's HSTU focuses on retrieval, Kuaishou (the Chinese short-video platform) went further with **OneRec** [[paper]](https://arxiv.org/abs/2502.18965) — an attempt to unify retrieval, ranking, and re-ranking into a single generative model trained end-to-end.
 
 The core idea: instead of a funnel, use a single autoregressive model that generates an ordered list of recommendations directly from user context. This is closer in spirit to large language model generation than traditional recommendation.
 
@@ -45,7 +45,7 @@ OneRec represents items using **semantic identifiers** — hierarchical codes le
 
 ### OneRec V2: Scaling and Quality
 
-OneRec V2 addressed the practical challenges of the first version: training instability at scale, the difficulty of learning good semantic item codes, and inference latency.
+OneRec V2 [[paper]](https://arxiv.org/abs/2508.20900) addressed the practical challenges of the first version: training instability at scale, the difficulty of learning good semantic item codes, and inference latency.
 
 Key improvements in V2:
 - **Better code learning**: V2 uses a two-stage codebook learning process, first learning content-based codes and then fine-tuning them on engagement signals. This produces codes that are both semantically meaningful and behaviorally discriminative.
@@ -54,7 +54,7 @@ Key improvements in V2:
 
 ### OneRec Think: Reasoning Before Recommending
 
-OneRec Think is the most recent and most ambitious step: adding a chain-of-thought reasoning step before generating recommendations.
+OneRec Think [[paper]](https://arxiv.org/abs/2510.11639) is the most recent and most ambitious step: adding a chain-of-thought reasoning step before generating recommendations.
 
 The model first generates an explicit "reasoning trace" — a structured natural language summary of the user's inferred interests, mood, and context — and then generates recommendations conditioned on that trace.
 
@@ -70,7 +70,7 @@ OneRec Think showed significant gains on Kuaishou's long-form video platform, pa
 
 ### Google / YouTube
 
-Google has been applying language model techniques to recommendation through several projects. Their **P5** framework (2022) framed five recommendation tasks — rating prediction, sequential recommendation, explanation generation, review summarization, and direct recommendation — as text-to-text generation using T5.
+Google has been applying language model techniques to recommendation through several projects. Their **P5** framework [[paper]](https://arxiv.org/abs/2203.13366) (RecSys 2022) framed five recommendation tasks — rating prediction, sequential recommendation, explanation generation, review summarization, and direct recommendation — as text-to-text generation using T5.
 
 For YouTube specifically, Google has been moving toward unified models that jointly learn retrieval and ranking. Their **Monolithic Recommender** work explores replacing the multi-stage pipeline with a single large model, accepting higher inference cost in exchange for better joint optimization.
 
@@ -78,7 +78,7 @@ Google's scale (billions of YouTube users, hundreds of billions of videos) makes
 
 ### Alibaba / Taobao
 
-Alibaba has been at the forefront of applying large models to e-commerce recommendation. Their **TIGER** system (Transformer Index for GEnerative Retrieval) adapts ideas from document retrieval to product search and recommendation.
+Alibaba has been at the forefront of applying large models to e-commerce recommendation. Their **TIGER** system [[paper]](https://arxiv.org/abs/2305.05065) (NeurIPS 2023) adapts ideas from document retrieval to product search and recommendation.
 
 A distinctive challenge in e-commerce: items have rich structured attributes (price, category, brand, seller) that should inform both the semantic codes and the generation process. Alibaba's work on **semantic ID generation** for products specifically addresses how to incorporate structured metadata into the codebook learning process.
 
@@ -94,7 +94,7 @@ ByteDance's recommendation infrastructure is arguably the most studied from the 
 
 Despite the impressive results, several open problems remain:
 
-**Inference latency.** Autoregressive generation is inherently sequential — each token depends on the previous one. At TikTok or YouTube scale, generating recommendations in under 100ms requires careful engineering: speculative decoding, model distillation, hardware-aware beam search, and careful batching strategies.
+**Inference latency.** Autoregressive generation is inherently sequential — each token depends on the previous one. At TikTok or YouTube scale, generating recommendations in under 100ms requires careful engineering: speculative decoding, model distillation, hardware-aware beam search, and careful batching strategies. Systems like vLLM [[paper]](https://arxiv.org/abs/2309.06180) (SOSP 2023), which introduced PagedAttention for efficient KV cache management, are directly applicable here.
 
 **Item churn.** New items are added to platforms continuously. A generative model must learn valid item codes for new items quickly, without full retraining. Current approaches include periodically updating the codebook and fine-tuning the decoder, but there's no clean solution yet.
 
@@ -117,3 +117,15 @@ A few directions I think will define the next three to five years:
 **Causal and counterfactual modeling.** Generative models can, in principle, reason counterfactually: "what would this user have engaged with if they hadn't seen those 10 videos yesterday?" This is hard with traditional recommenders but natural to express in a generative framework. Expect to see this used to reduce feedback loops and popularity bias.
 
 The two-stage pipeline served the industry well for two decades. But generative retrieval has demonstrated — at production scale, at the largest platforms in the world — that a better architecture exists. The question now is not whether to adopt it, but how fast.
+
+---
+
+## References
+
+- Zhai et al. (Meta, 2024). [Actions Speak Louder than Words: Trillion-Parameter Sequential Transducers for Generative Recommendations](https://arxiv.org/abs/2402.17152). ICML 2024.
+- Kuaishou Team (2025). [OneRec: Unifying Retrieve and Rank with Generative Recommender and Iterative Preference Alignment](https://arxiv.org/abs/2502.18965).
+- Kuaishou Team (2025). [OneRec-V2 Technical Report](https://arxiv.org/abs/2508.20900).
+- Kuaishou Team (2025). [OneRec-Think: In-Text Reasoning for Generative Recommendation](https://arxiv.org/abs/2510.11639).
+- Geng et al. (2022). [Recommendation as Language Processing (P5)](https://arxiv.org/abs/2203.13366). RecSys 2022.
+- Rajput et al. (Alibaba, 2023). [Recommender Systems with Generative Retrieval (TIGER)](https://arxiv.org/abs/2305.05065). NeurIPS 2023.
+- Kwon et al. (2023). [Efficient Memory Management for Large Language Model Serving with PagedAttention](https://arxiv.org/abs/2309.06180). SOSP 2023.
