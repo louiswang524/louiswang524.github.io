@@ -15,7 +15,15 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
     <div class="container">
       <section class="hero">
         <h1>Louis Wang</h1>
-        <p>Machine learning engineer. Writing about ML, AI agents, recommendation systems, and GPU programming.</p>
+        <p>
+          ML engineer at <strong>Netflix</strong>, previously at <strong>Snap</strong>. Based in San Francisco.
+          I work on recommendation systems and LLM-powered applications — ranging from generative retrieval
+          and semantic IDs to agentic AI and vector quantization.
+        </p>
+        <p style="margin-top: 0.75rem;">
+          This blog is where I write about things I find interesting: large-scale RecSys, LLM agents,
+          ML infrastructure, and the occasional deep dive into model architecture.
+        </p>
       </section>
 
       <section>
