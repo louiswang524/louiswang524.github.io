@@ -9,7 +9,22 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
   .slice(0, 5);
 ---
 
-<BaseLayout title="Louis Wang">
+<BaseLayout
+  title="Louis Wang — ML Engineer, Generative RecSys & AI Agents"
+  description="ML engineer at Netflix building reasoning recommender systems and AI agents. Writing about generative retrieval, LLMs, and recommendation systems."
+>
+  <script slot="head" type="application/ld+json" set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: 'Louis Wang',
+    url: 'https://louiswang524.github.io',
+    jobTitle: 'Machine Learning Engineer',
+    worksFor: { '@type': 'Organization', name: 'Netflix' },
+    sameAs: [
+      'https://github.com/louiswang524',
+      'https://www.linkedin.com/in/yu-feng/',
+    ],
+  })} />
   <Header slot="header" />
   <main>
     <div class="container">

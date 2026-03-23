@@ -4,9 +4,22 @@ import '../styles/global.css';
 interface Props {
   title: string;
   description?: string;
+  ogImage?: string;
+  ogType?: 'website' | 'article';
+  canonicalUrl?: string;
 }
 
-const { title, description = 'Louis Wang — personal blog on ML, AI, and software.' } = Astro.props;
+const {
+  title,
+  description = 'Louis Wang — ML engineer at Netflix writing about generative recommendation, AI agents, and LLM systems.',
+  ogImage = '/og-default.png',
+  ogType = 'website',
+  canonicalUrl,
+} = Astro.props;
+
+const siteUrl = 'https://louiswang524.github.io';
+const canonical = canonicalUrl ?? `${siteUrl}${Astro.url.pathname}`;
+const ogImageUrl = ogImage.startsWith('http') ? ogImage : `${siteUrl}${ogImage}`;
 ---
 
 <!doctype html>
@@ -14,12 +27,35 @@ const { title, description = 'Louis Wang — personal blog on ML, AI, and softwa
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content={description} />
-    <meta name="generator" content={Astro.generator} />
+
+    <!-- Primary meta -->
     <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="author" content="Louis Wang" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content={ogType} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:site_name" content="Louis Wang" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageUrl} />
+
+    <!-- Feeds & assets -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate" type="application/rss+xml" title="Louis Wang" href="/rss.xml" />
+    <link rel="sitemap" href="/sitemap.xml" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+
+    <meta name="generator" content={Astro.generator} />
     <slot name="head" />
   </head>
   <body>
@@ -40,7 +76,6 @@ const { title, description = 'Louis Wang — personal blog on ML, AI, and softwa
       </div>
     </footer>
 
-    <!-- Back to top button -->
     <button id="back-to-top" aria-label="Back to top" title="Back to top">↑</button>
   </body>
 </html>
