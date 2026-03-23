@@ -82,6 +82,29 @@ Alibaba has been at the forefront of applying large models to e-commerce recomme
 
 A distinctive challenge in e-commerce: items have rich structured attributes (price, category, brand, seller) that should inform both the semantic codes and the generation process. Alibaba's work on **semantic ID generation** for products specifically addresses how to incorporate structured metadata into the codebook learning process.
 
+### LinkedIn
+
+LinkedIn's approach [[blog]](https://www.linkedin.com/blog/engineering/feed/engineering-the-next-generation-of-linkedins-feed) (March 2026) is the clearest example of the **modernized pipeline** strategy — rather than collapsing retrieval and ranking into a single generative model, they upgraded each stage independently with modern LLM and transformer technology.
+
+**Retrieval: LLM-enhanced two-tower.** LinkedIn replaced their shallow dual encoder with an LLM-backbone two-tower model, trained with InfoNCE loss and hard negative mining. The architecture is still two-tower at heart, but the expressive power of the LLM encoder closes much of the quality gap with end-to-end approaches. Hard negative mining alone contributed a **3.6% improvement in recall**, and the full system achieved **+15% recall@10** over the legacy retrieval.
+
+A particularly interesting insight: LLMs don't inherently understand raw numerical magnitudes. Feeding a raw engagement count like "4,382 likes" as a number is largely meaningless to an LLM encoder. LinkedIn's solution — converting continuous engagement counts into **percentile buckets wrapped in special tokens** — resulted in a **30× increase in correlation** between popularity features and embedding similarity.
+
+**Ranking: large sequence transformer.** The ranking model is a transformer with causal attention that processes over 1,000 historical user interactions as a unified chronological sequence — essentially a GPT-style model applied to user history. Post-action pairs are interleaved during training, and the transformer output is combined via late fusion with count and affinity features, feeding into a Multi-gate Mixture-of-Experts (MMoE) prediction head.
+
+**Production engineering.** At 1.3 billion professionals, LinkedIn built substantial custom infrastructure: GRMIS (a custom Flash Attention variant delivering **2× speedup** over PyTorch's standard implementation), custom CUDA kernels for multi-label AUC computation, and a disaggregated CPU/GPU serving architecture that achieves **sub-50ms retrieval** at thousands of queries per second.
+
+The LinkedIn approach sits between the traditional pipeline and pure generative retrieval:
+
+| Approach | Retrieval | Ranking | Pipeline |
+|---|---|---|---|
+| Traditional | Shallow two-tower | GBDT / shallow DNN | Two-stage |
+| **LinkedIn** | **LLM two-tower** | **Large sequence transformer** | **Two-stage (upgraded)** |
+| Meta HSTU | Generative model | — | Collapsed |
+| Kuaishou OneRec | Generative model | Generative model | Fully collapsed |
+
+This incremental strategy has a real advantage: it's far less risky to upgrade each stage independently than to replace the entire pipeline at once, especially at LinkedIn's scale. The tradeoff is that joint optimization across retrieval and ranking remains out of reach — the two stages are still trained separately with different objectives.
+
 ### ByteDance / TikTok
 
 ByteDance's recommendation infrastructure is arguably the most studied from the outside, given TikTok's cultural impact. While they haven't published as much technical detail as Meta or Kuaishou, their patents and engineering blog posts suggest heavy use of:
@@ -129,3 +152,4 @@ The two-stage pipeline served the industry well for two decades. But generative 
 - Geng et al. (2022). [Recommendation as Language Processing (P5)](https://arxiv.org/abs/2203.13366). RecSys 2022.
 - Rajput et al. (Alibaba, 2023). [Recommender Systems with Generative Retrieval (TIGER)](https://arxiv.org/abs/2305.05065). NeurIPS 2023.
 - Kwon et al. (2023). [Efficient Memory Management for Large Language Model Serving with PagedAttention](https://arxiv.org/abs/2309.06180). SOSP 2023.
+- Danchev, H. (LinkedIn, 2026). [Engineering the Next Generation of LinkedIn's Feed](https://www.linkedin.com/blog/engineering/feed/engineering-the-next-generation-of-linkedins-feed).
