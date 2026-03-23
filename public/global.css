@@ -1,7 +1,8 @@
 /* ── Reset & Base ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
+:root,
+[data-theme='light'] {
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 
@@ -15,6 +16,16 @@
 
   --max-w: 740px;
   --toc-w: 220px;
+}
+
+[data-theme='dark'] {
+  --bg: #0f0f0f;
+  --bg-subtle: #1a1a1a;
+  --border: #2e2e2e;
+  --text: #e8e8e8;
+  --text-muted: #888888;
+  --accent: #4da3ff;
+  --accent-hover: #79bcff;
 }
 
 html { font-size: 16px; scroll-behavior: smooth; }
@@ -43,7 +54,7 @@ header {
   padding: 1rem 0;
   position: sticky;
   top: 0;
-  background: rgba(255, 255, 255, 0.92);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: blur(8px);
   z-index: 100;
 }
@@ -143,7 +154,8 @@ main { padding: 3rem 0 5rem; }
 }
 
 .prose pre {
-  background: #1e1e1e;
+  background: #1a1a1a;
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 1.25rem;
   overflow-x: auto;

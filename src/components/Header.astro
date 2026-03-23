@@ -7,5 +7,49 @@ const { pathname } = Astro.url;
     <a href="/" class="site-title">Louis Wang</a>
     <a href="/" class={pathname === '/' ? 'active' : ''}>Home</a>
     <a href="/blog" class={pathname.startsWith('/blog') ? 'active' : ''}>Blog</a>
+    <button id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <span class="icon-sun">☀️</span>
+      <span class="icon-moon">🌙</span>
+    </button>
   </nav>
 </header>
+
+<script is:inline>
+  // Apply theme immediately to avoid flash
+  const saved = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme = saved || (prefersDark ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', theme);
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('theme-toggle');
+    btn?.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+  });
+</script>
+
+<style>
+  #theme-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 0.2rem 0.45rem;
+    font-size: 0.85rem;
+    line-height: 1;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+  }
+  #theme-toggle:hover { border-color: var(--text-muted); }
+
+  /* show sun in dark mode, moon in light mode */
+  :global([data-theme='dark']) .icon-moon { display: none; }
+  :global([data-theme='light']) .icon-sun { display: none; }
+  /* default (no attribute set yet) — hide sun */
+  :global(:not([data-theme])) .icon-sun { display: none; }
+</style>
