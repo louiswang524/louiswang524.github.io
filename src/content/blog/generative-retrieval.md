@@ -1,6 +1,6 @@
 ---
-title: "Generative Retrieval: How Big Tech Is Rethinking Recommendation"
-description: "From semantic IDs to OneRec Think — a concept-first deep dive into how generative models are replacing two-stage retrieval pipelines, what's in production, and where the field is heading."
+title: "Generative Recommendation in Production: HSTU, OneRec, and What Every Major Platform Is Building"
+description: "From semantic IDs to OneRec Think — how Meta, Kuaishou, Google, Alibaba, ByteDance, and LinkedIn are replacing two-stage retrieval pipelines with generative models. What's in production and where the field is heading."
 date: 2026-03-23
 tags: ["recommendation systems", "generative AI", "HSTU", "OneRec"]
 ---
