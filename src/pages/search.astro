@@ -1,0 +1,26 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+---
+
+<BaseLayout title="Search — Louis Wang">
+  <Fragment slot="head">
+    <link href="/pagefind/pagefind-ui.css" rel="stylesheet" />
+  </Fragment>
+  <Header slot="header" />
+  <main>
+    <div class="container">
+      <h1 class="page-title">Search</h1>
+      <div id="search"></div>
+    </div>
+  </main>
+</BaseLayout>
+
+<script src="/pagefind/pagefind-ui.js" is:inline></script>
+<script is:inline>
+  window.addEventListener('DOMContentLoaded', () => {
+    if (typeof PagefindUI !== 'undefined') {
+      new PagefindUI({ element: '#search', showSubResults: true, showImages: false });
+    }
+  });
+</script>

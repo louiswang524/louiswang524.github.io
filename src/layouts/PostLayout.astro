@@ -2,6 +2,7 @@
 import BaseLayout from './BaseLayout.astro';
 import Header from '../components/Header.astro';
 import TOC from '../components/TOC.astro';
+import { readingTime } from '../utils/readingTime';
 
 interface Props {
   title: string;
@@ -9,27 +10,68 @@ interface Props {
   date: Date;
   tags?: string[];
   headings: { depth: number; slug: string; text: string }[];
+  body: string;
+  prev?: { slug: string; title: string } | null;
+  next?: { slug: string; title: string } | null;
 }
 
-const { title, description, date, tags = [], headings } = Astro.props;
+const { title, description, date, tags = [], headings, body, prev, next } = Astro.props;
 const formattedDate = date.toLocaleDateString('en-US', {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
 });
+const readTime = readingTime(body);
 ---
 
 <BaseLayout title={`${title} — Louis Wang`} description={description}>
   <Header slot="header" />
   <main>
     <div class="post-wrapper">
-      <article class="post-content prose">
+      <article class="post-content prose" data-pagefind-body>
+        <nav class="breadcrumb" aria-label="breadcrumb">
+          <a href="/">Home</a>
+          <span>›</span>
+          <a href="/blog">Blog</a>
+          <span>›</span>
+          <span>{title}</span>
+        </nav>
         <h1>{title}</h1>
-        <span class="post-date">
-          {formattedDate}
-          {tags.map(tag => <span class="tag">{tag}</span>)}
-        </span>
+        <div class="post-meta-bar">
+          <span>{formattedDate}</span>
+          <span class="meta-sep">·</span>
+          <span>{readTime}</span>
+          {tags.length > 0 && (
+            <>
+              <span class="meta-sep">·</span>
+              {tags.map(tag => (
+                <a href={`/tags/${tag}`} class="tag">{tag}</a>
+              ))}
+            </>
+          )}
+        </div>
         <slot />
+
+        {(prev || next) && (
+          <nav class="post-nav">
+            <div class="post-nav-item">
+              {prev && (
+                <a href={`/blog/${prev.slug}`} class="post-nav-link prev">
+                  <span class="post-nav-label">← Previous</span>
+                  <span class="post-nav-title">{prev.title}</span>
+                </a>
+              )}
+            </div>
+            <div class="post-nav-item">
+              {next && (
+                <a href={`/blog/${next.slug}`} class="post-nav-link next">
+                  <span class="post-nav-label">Next →</span>
+                  <span class="post-nav-title">{next.title}</span>
+                </a>
+              )}
+            </div>
+          </nav>
+        )}
       </article>
       <TOC headings={headings} />
     </div>

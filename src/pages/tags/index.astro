@@ -1,0 +1,33 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import { getCollection } from 'astro:content';
+
+const posts = await getCollection('blog', ({ data }) => !data.draft);
+
+const tagMap = new Map<string, number>();
+for (const post of posts) {
+  for (const tag of post.data.tags ?? []) {
+    tagMap.set(tag, (tagMap.get(tag) ?? 0) + 1);
+  }
+}
+const tags = [...tagMap.entries()].sort((a, b) => b[1] - a[1]);
+---
+
+<BaseLayout title="Tags — Louis Wang">
+  <Header slot="header" />
+  <main>
+    <div class="container">
+      <h1 class="page-title">Tags</h1>
+      <div class="tag-cloud">
+        {tags.map(([tag, count]) => (
+          <a href={`/tags/${tag}`} class="tag-cloud-item">
+            {tag}
+            <span class="tag-count">{count}</span>
+          </a>
+        ))}
+        {tags.length === 0 && <p style="color: var(--text-muted)">No tags yet.</p>}
+      </div>
+    </div>
+  </main>
+</BaseLayout>
