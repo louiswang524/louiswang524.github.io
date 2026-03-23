@@ -1,0 +1,38 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'Louis Wang — personal blog on ML, AI, and software.' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <slot name="header">
+      <!-- default header injected by pages -->
+    </slot>
+    <slot />
+    <footer>
+      <div class="container">
+        <span>© {new Date().getFullYear()} Louis Wang</span>
+        <span>
+          <a href="mailto:louiswang524@gmail.com">Email</a>
+          &nbsp;·&nbsp;
+          <a href="https://github.com/louiswang524" target="_blank" rel="noopener">GitHub</a>
+        </span>
+      </div>
+    </footer>
+  </body>
+</html>

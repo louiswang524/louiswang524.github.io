@@ -1,0 +1,11 @@
+---
+const { pathname } = Astro.url;
+---
+
+<header>
+  <nav>
+    <a href="/" class="site-title">Louis Wang</a>
+    <a href="/" class={pathname === '/' ? 'active' : ''}>Home</a>
+    <a href="/blog" class={pathname.startsWith('/blog') ? 'active' : ''}>Blog</a>
+  </nav>
+</header>

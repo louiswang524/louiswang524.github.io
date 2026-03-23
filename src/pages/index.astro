@@ -1,0 +1,43 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 5);
+---
+
+<BaseLayout title="Louis Wang">
+  <Header slot="header" />
+  <main>
+    <div class="container">
+      <section class="hero">
+        <h1>Louis Wang</h1>
+        <p>Machine learning engineer. Writing about ML, AI agents, recommendation systems, and GPU programming.</p>
+      </section>
+
+      <section>
+        <h2 style="font-size: 1rem; font-weight: 600; margin-bottom: 1.5rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.75rem;">
+          Recent posts
+        </h2>
+        <ul class="post-list">
+          {posts.map(post => (
+            <li>
+              <p class="post-meta">
+                {post.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
+              <h2><a href={`/blog/${post.slug}`}>{post.data.title}</a></h2>
+              <p class="post-desc">{post.data.description}</p>
+            </li>
+          ))}
+        </ul>
+        {posts.length > 0 && (
+          <p style="margin-top: 1.5rem; font-size: 0.9rem;">
+            <a href="/blog">All posts →</a>
+          </p>
+        )}
+      </section>
+    </div>
+  </main>
+</BaseLayout>
