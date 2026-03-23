@@ -19,7 +19,7 @@ Andrej Karpathy coined the term in February 2025: "fully give in to the vibes, e
 
 The appeal is obvious. The feedback loop is instant. You feel productive from the first prompt. You're not fighting syntax or APIs or documentation — you're just describing intent and watching code appear.
 
-The market validated this instantly. By early 2025, 25% of Y Combinator's Winter batch had codebases that were 95%+ AI-generated. The global AI code generation market, sitting at $674M in 2024, is projected to hit $15.7B by 2033. 97.5% of companies have integrated AI into their engineering processes in some form.
+The market validated this instantly. By early 2025, 25% of Y Combinator's Winter batch had codebases that were 95%+ AI-generated. The global AI code generation market, sitting at \$674M in 2024, is projected to hit \$15.7B by 2033. 97.5% of companies have integrated AI into their engineering processes in some form.
 
 For certain tasks, vibe coding is genuinely the right approach:
 
