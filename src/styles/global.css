@@ -157,7 +157,17 @@ main { padding: 3rem 0 5rem; }
   color: #d4d4d4;
 }
 
-.prose img { max-width: 100%; border-radius: 6px; margin: 1.5rem 0; }
+.prose img { max-width: 100%; border-radius: 6px; margin: 1.5rem auto; display: block; }
+
+/* italic text immediately after an image acts as a caption */
+.prose img + em {
+  display: block;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: -1rem;
+  margin-bottom: 1.5rem;
+}
 .prose hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
 
 .prose a { color: var(--accent); }

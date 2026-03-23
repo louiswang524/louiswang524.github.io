@@ -22,6 +22,24 @@ Your content here. Standard Markdown applies.
 H2, H3, and H4 headings are picked up automatically for the sticky table of contents sidebar.
 ```
 
+## Adding images to a post
+
+1. Copy your image file into `public/images/`:
+   ```
+   public/images/my-diagram.png
+   ```
+
+2. Reference it in your Markdown with an absolute path:
+   ```markdown
+   ![Two-stage retrieval pipeline](/images/my-diagram.png)
+   ```
+
+   Optionally add a caption below using italics:
+   ```markdown
+   ![Two-stage retrieval pipeline](/images/my-diagram.png)
+   *Figure 1: Classic retrieval → ranking funnel.*
+   ```
+
 Then push — GitHub Actions handles the build and deploy:
 
 ```bash
