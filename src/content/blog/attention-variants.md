@@ -5,7 +5,7 @@ date: 2026-03-28
 tags: ["transformers", "attention", "LLM", "deep learning", "GQA", "flash attention", "linear attention"]
 ---
 
-Every modern large language model — GPT-4, Llama 3, Gemini, Mistral — is a transformer. Every transformer is built around attention. But the attention mechanism described in "Attention Is All You Need" (Vaswani et al., 2017) cannot run a 128K-token context on any GPU that exists today.
+Every modern large language model — GPT-4, Llama 3, Gemini, Mistral — is a transformer. Every transformer is built around attention. But the original mechanism from "Attention Is All You Need" (Vaswani et al., 2017) cannot scale to those lengths. No GPU that exists today can run it at 128K tokens.
 
 The math makes the problem concrete. The attention matrix for a single layer has $n^2$ entries, where $n$ is sequence length. At $n = 32{,}768$ tokens in FP16, that matrix occupies roughly 2 GB of GPU memory — for one layer. With 32 layers, attention matrices alone require 64 GB. The H100, the most powerful production GPU available, has 80 GB of HBM in total.
 
