@@ -152,7 +152,7 @@ Linear attention approximates softmax — it loses the sharp, peaked attention d
 
 ## Problem 4: The GPU I/O Wall
 
-By 2022, practitioners using sparse and linear attention noticed something unexpected: profiling showed that standard attention was not compute-bound. The GPU's tensor cores were sitting idle. The real bottleneck was memory bandwidth — the time spent moving data between different parts of the GPU's memory hierarchy.
+By 2022, practitioners had sparse and linear attention. Yet profiling showed standard attention was still slow. The GPU's tensor cores were sitting idle. The bottleneck was not arithmetic — it was memory bandwidth. Moving data between memory tiers dominated runtime.
 
 ### The GPU Memory Hierarchy
 
@@ -161,7 +161,7 @@ Modern GPUs have two relevant memory tiers:
 - **SRAM (shared memory, on-chip):** ~20 MB on an A100, bandwidth ~19 TB/s
 - **HBM (high-bandwidth memory, off-chip):** 40–80 GB on an A100, bandwidth ~2 TB/s
 
-SRAM is roughly 10× faster than HBM but 2,000× smaller. Standard attention reads $Q$, $K$, $V$ from HBM, computes $QK^\top$ (an $n \times n$ matrix), writes it to HBM, reads it back for softmax, writes again, reads again for the $V$ multiplication. That is three round-trips over $O(n^2)$ data — dominated by HBM bandwidth, not arithmetic.
+SRAM is roughly 10× faster than HBM but 2,000× smaller. Standard attention reads $Q$, $K$, $V$ from HBM and computes $QK^\top$. It writes the $n \times n$ result to HBM, reads it back for softmax, then reads it again for the $V$ multiplication. That is three round-trips over $O(n^2)$ data — dominated by HBM bandwidth, not arithmetic.
 
 ### Flash Attention
 
