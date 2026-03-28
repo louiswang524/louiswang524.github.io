@@ -77,3 +77,37 @@ MHA is GQA with $G = H$. MQA is GQA with $G = 1$. GQA interpolates between them:
 **Uptraining from MHA:** To convert an existing MHA checkpoint to GQA, Ainslie et al. propose mean-pooling the $H/G$ K/V head projections within each group to initialize the shared GQA head, then continuing training for a short period. This avoids training GQA models from scratch.
 
 GQA is now the default in most production LLMs: Llama 2 70B, Llama 3, Mistral 7B, and Gemma all use it.
+
+## Problem 2: The Sequence Length Wall
+
+GQA and MQA reduce the KV cache. They do not reduce the cost of computing attention itself. The $QK^\top$ matrix is still $n \times n$. At $n = 100{,}000$ tokens, that is $10^{10}$ entries — approximately 20 GB at FP16, per layer, before any K/V cache optimizations apply.
+
+The question becomes: does every token need to attend to every other token?
+
+### Sparse Attention
+
+**Sparse Transformer** (Child et al., 2019) applies a binary mask $M \in \{0,1\}^{n \times n}$ to restrict which positions attend to each other:
+
+$$\text{Attention}_{\text{sparse}}(Q, K, V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}} + \log M\right) V$$
+
+where $\log M$ is zero at allowed positions and $-\infty$ at masked positions (which become zero after softmax). Three patterns proved most useful:
+
+- **Local window:** $M_{ij} = 1$ iff $|i - j| \leq w$. Each token attends to its $2w$ nearest neighbors.
+- **Strided:** $M_{ij} = 1$ iff $(i - j) \bmod k = 0$. Every $k$-th token is globally visible.
+- **Combined:** local + strided, covering $O(n\sqrt{n})$ pairs instead of $O(n^2)$.
+
+### Sliding Window Attention
+
+**Sliding Window Attention**, used in Longformer (Beltagy et al., 2020) and Mistral 7B (Jiang et al., 2023), is the causal special case of local windowing: each token attends only to the $W$ most recent positions:
+
+$$M_{ij} = \mathbf{1}[i - W \leq j \leq i]$$
+
+Complexity drops from $O(n^2)$ to $O(n \cdot W)$.
+
+**Effective receptive field across layers:** Although each layer sees only a window of size $W$, information propagates across layers. A token at position $i$ can receive information from position $j$ in $\lceil (i - j) / W \rceil$ layers. With $L$ layers stacked, the effective receptive field is $W \times L$.
+
+Mistral 7B uses $W = 4{,}096$ with $L = 32$ transformer layers:
+
+$$\text{Effective context} = 4{,}096 \times 32 = 131{,}072 \text{ tokens}$$
+
+This is why Mistral achieves strong long-context performance despite attending to a small local window per layer.
