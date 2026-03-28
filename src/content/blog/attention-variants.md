@@ -192,3 +192,50 @@ The mathematical output is bit-for-bit identical to standard attention.
 
 - **Flash Attention 2** (Dao, 2023): restructures work partitioning across GPU warps to reduce non-matmul FLOPs and improve parallelism. Roughly 2× faster than FA1.
 - **Flash Attention 3** (Shah et al., 2024): targets the H100's Hopper architecture specifically — uses warp-specialized pipelines, asynchronous memory copies, and FP8 precision. Achieves up to 75% of the H100's theoretical FP8 peak FLOPS.
+
+## How Modern LLMs Combine These
+
+No single variant won. Production models stack them because the bottlenecks they address are independent:
+
+| Model | KV Reduction | Long Context | IO Efficiency |
+|---|---|---|---|
+| GPT-3 (2020) | MHA — none | — | Standard |
+| PaLM (2022) | MQA | — | Standard |
+| Llama 2 70B (2023) | GQA | — | Flash Attention 2 |
+| Mistral 7B (2023) | GQA | Sliding Window ($W = 4096$) | Flash Attention 2 |
+| Llama 3 8B/70B (2024) | GQA | — | Flash Attention 2 |
+| Gemma 7B (2024) | GQA | — | Flash Attention 2 |
+
+The combinations are not arbitrary. Each technique addresses a different bottleneck:
+
+- **GQA** attacks the KV cache — the memory cost per sequence during inference.
+- **Sliding Window Attention** attacks the per-layer compute cost for long inputs.
+- **Flash Attention** attacks GPU memory bandwidth — it applies regardless of which attention variant you use.
+
+The practical decision tree: if you are building or fine-tuning a model and hitting KV cache memory limits → add GQA. If you are hitting sequence length limits → add sliding window or linear attention. If you are hitting training throughput → enable Flash Attention. These fixes do not conflict.
+
+**What this post does not cover:** state-space models (Mamba, S4) and hybrid architectures (Jamba, Zamba) represent a different branch of the scaling tree — replacing attention with selective state transitions rather than approximating it. That is a separate post.
+
+## References
+
+1. Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., & Polosukhin, I. (2017). [Attention Is All You Need](https://arxiv.org/abs/1706.03762). *NeurIPS 2017*.
+
+2. Shazeer, N. (2019). [Fast Transformer Decoding: One Write-Head is All You Need](https://arxiv.org/abs/1911.02150). *arXiv:1911.02150*.
+
+3. Ainslie, J., Lee-Thorp, J., de Jong, M., Zemlyanskiy, Y., Lebrón, F., & Sanghai, S. (2023). [GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints](https://arxiv.org/abs/2305.13245). *EMNLP 2023*.
+
+4. Child, R., Gray, S., Radford, A., & Sutskever, I. (2019). [Generating Long Sequences with Sparse Transformers](https://arxiv.org/abs/1904.10509). *arXiv:1904.10509*.
+
+5. Beltagy, I., Peters, M. E., & Cohan, A. (2020). [Longformer: The Long-Document Transformer](https://arxiv.org/abs/2004.05150). *arXiv:2004.05150*.
+
+6. Jiang, A. Q., Sablayrolles, A., Mensch, A., Bamford, C., Chaplot, D. S., de las Casas, D., Bressand, F., Lengyel, G., Lample, G., Saulnier, L., Lavaud, L. R., Lachaux, M.-A., Stock, P., Le Scao, T., Lavril, T., Wang, T., Lacroix, T., & El Sayed, W. (2023). [Mistral 7B](https://arxiv.org/abs/2310.06825). *arXiv:2310.06825*.
+
+7. Katharopoulos, A., Vyas, A., Pappas, N., & Fleuret, F. (2020). [Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention](https://arxiv.org/abs/2006.16236). *ICML 2020*.
+
+8. Choromanski, K., Likhosherstov, V., Dohan, D., Song, X., Gane, A., Sarlos, T., Hawkins, P., Davis, J., Mohiuddin, A., Kaiser, Ł., Belanger, D., Colwell, L., & Weller, A. (2020). [Rethinking Attention with Performers](https://arxiv.org/abs/2009.14794). *ICLR 2021*.
+
+9. Dao, T., Fu, D. Y., Ermon, S., Rudra, A., & Ré, C. (2022). [FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness](https://arxiv.org/abs/2205.14135). *NeurIPS 2022*.
+
+10. Dao, T. (2023). [FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning](https://arxiv.org/abs/2307.08691). *ICLR 2024*.
+
+11. Shah, J., Bikshandi, G., Zhang, Y., Thakkar, V., Ramani, P., & Dao, T. (2024). [FlashAttention-3: Fast and Accurate Attention with Asynchrony and Low-precision](https://arxiv.org/abs/2407.08608). *arXiv:2407.08608*.
