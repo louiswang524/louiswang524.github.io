@@ -149,3 +149,46 @@ where $\phi_\omega(x) = \frac{1}{\sqrt{m}}\exp\!\left(\omega_r^\top x - \tfrac{\
 ### Quality Trade-off
 
 Linear attention approximates softmax — it loses the sharp, peaked attention distributions that standard attention learns. For tasks requiring precise token recall (e.g. copying a specific value from earlier in the context), the approximation gap is measurable. For tasks that aggregate information over long spans, linear attention is often competitive with standard attention at a fraction of the compute.
+
+## Problem 4: The GPU I/O Wall
+
+By 2022, practitioners using sparse and linear attention noticed something unexpected: profiling showed that standard attention was not compute-bound. The GPU's tensor cores were sitting idle. The real bottleneck was memory bandwidth — the time spent moving data between different parts of the GPU's memory hierarchy.
+
+### The GPU Memory Hierarchy
+
+Modern GPUs have two relevant memory tiers:
+
+- **SRAM (shared memory, on-chip):** ~20 MB on an A100, bandwidth ~19 TB/s
+- **HBM (high-bandwidth memory, off-chip):** 40–80 GB on an A100, bandwidth ~2 TB/s
+
+SRAM is roughly 10× faster than HBM but 2,000× smaller. Standard attention reads $Q$, $K$, $V$ from HBM, computes $QK^\top$ (an $n \times n$ matrix), writes it to HBM, reads it back for softmax, writes again, reads again for the $V$ multiplication. That is three round-trips over $O(n^2)$ data — dominated by HBM bandwidth, not arithmetic.
+
+### Flash Attention
+
+**Flash Attention** (Dao et al., 2022) achieves the same mathematical output as standard attention while never materializing the full $n \times n$ matrix in HBM. It does this with three ideas:
+
+**1. Tiling.** Partition $Q$, $K$, $V$ into blocks of size $B_r \times B_c$ that fit in SRAM. Process one block at a time, keeping all intermediate values on-chip.
+
+**2. Online softmax.** Softmax over a full row requires seeing all scores first. The online softmax algorithm computes a numerically stable result using running statistics. For each new block of key-value pairs, update:
+
+$$m^{\text{new}} = \max(m^{\text{old}},\; \text{rowmax}(S_{\text{block}}))$$
+$$\ell^{\text{new}} = e^{m^{\text{old}} - m^{\text{new}}} \cdot \ell^{\text{old}} + \text{rowsum}\!\left(e^{S_{\text{block}} - m^{\text{new}}}\right)$$
+$$O^{\text{new}} = \text{diag}\!\left(e^{m^{\text{old}} - m^{\text{new}}}\right) O^{\text{old}} + e^{S_{\text{block}} - m^{\text{new}}} V_{\text{block}}$$
+
+After all blocks: $O_{\text{final}} = \text{diag}(1/\ell^{\text{new}}) \cdot O^{\text{new}}$.
+
+This produces the exact same result as computing softmax over all scores at once.
+
+**3. Recomputation.** The backward pass normally needs the $n \times n$ attention matrix to compute gradients. Flash Attention discards it and recomputes from the saved output $O$ and softmax statistics $(\ell, m)$ during backprop. This trades extra FLOPs for drastically less HBM traffic.
+
+**Result:** IO complexity drops from $O(n^2)$ to $O(n^2 / M)$ where $M$ is SRAM size. On an A100:
+
+- **2–4×** wall-clock speedup over PyTorch standard attention
+- **5–20×** reduction in GPU memory usage for the attention operation
+
+The mathematical output is bit-for-bit identical to standard attention.
+
+### Subsequent Versions
+
+- **Flash Attention 2** (Dao, 2023): restructures work partitioning across GPU warps to reduce non-matmul FLOPs and improve parallelism. Roughly 2× faster than FA1.
+- **Flash Attention 3** (Shah et al., 2024): targets the H100's Hopper architecture specifically — uses warp-specialized pipelines, asynchronous memory copies, and FP8 precision. Achieves up to 75% of the H100's theoretical FP8 peak FLOPS.
