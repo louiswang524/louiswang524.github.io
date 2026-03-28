@@ -111,3 +111,41 @@ Mistral 7B uses $W = 4{,}096$ with $L = 32$ transformer layers:
 $$\text{Effective context} = 4{,}096 \times 32 = 131{,}072 \text{ tokens}$$
 
 This is why Mistral achieves strong long-context performance despite attending to a small local window per layer.
+
+## Problem 3: Even $O(n \cdot W)$ Has Limits
+
+Sparse and sliding window patterns reduce the constant but do not change the complexity class. For very long sequences — or tasks where important context is globally distributed — fixed sparsity patterns miss signal. The deeper question is: can we reduce the complexity of attention from $O(n^2)$ to $O(n)$?
+
+### The Kernel Decomposition
+
+The obstacle is the softmax. Written out explicitly, the $i$-th output of attention is:
+
+$$\text{Attention}(Q, K, V)_i = \frac{\sum_j \exp(q_i^\top k_j / \sqrt{d})\, v_j}{\sum_j \exp(q_i^\top k_j / \sqrt{d})}$$
+
+The denominator sums over all $j$ — the positions are coupled. You cannot compute the outputs independently.
+
+Linear attention replaces the exponential kernel with a decomposable kernel $\kappa(q, k) = \phi(q)^\top \phi(k)$ for some feature map $\phi : \mathbb{R}^d \to \mathbb{R}^r$:
+
+$$\text{Attention}_{\text{linear}}(Q, K, V)_i = \frac{\phi(q_i)^\top \sum_j \phi(k_j)\, v_j^\top}{\phi(q_i)^\top \sum_j \phi(k_j)}$$
+
+Now factor the computation. Define:
+
+$$S = \sum_j \phi(k_j)\, v_j^\top \in \mathbb{R}^{r \times d}, \qquad z = \sum_j \phi(k_j) \in \mathbb{R}^r$$
+
+Compute $S$ and $z$ once in $O(nr)$ time. Then each query is: $\phi(q_i)^\top S \;/\; \phi(q_i)^\top z$ in $O(r)$ time. Total: $O(nr)$ — linear in sequence length.
+
+### Linear Transformer
+
+**Linear Transformer** (Katharopoulos et al., 2020) uses $\phi(x) = \text{elu}(x) + 1$, which ensures positivity (required for the kernel interpretation). The causal variant accumulates $S$ and $z$ as prefix sums, making it equivalent to an RNN — enabling $O(1)$ per-step inference once the recurrence is unrolled.
+
+### Performer (FAVOR+)
+
+Rather than replacing softmax with an arbitrary kernel, **Performer** (Choromanski et al., 2020) approximates the softmax kernel itself using random features (FAVOR+: Fast Attention Via positive Orthogonal Random features):
+
+$$\exp(q^\top k / \sqrt{d}) \approx \mathbb{E}_\omega\!\left[\phi_\omega(q)^\top \phi_\omega(k)\right]$$
+
+where $\phi_\omega(x) = \frac{1}{\sqrt{m}}\exp\!\left(\omega_r^\top x - \tfrac{\|x\|^2}{2}\right)$ for random directions $\omega_r \sim \mathcal{N}(0, I_d)$ drawn as orthogonal vectors. Orthogonality reduces estimator variance by approximately $d\times$ compared to i.i.d. sampling.
+
+### Quality Trade-off
+
+Linear attention approximates softmax — it loses the sharp, peaked attention distributions that standard attention learns. For tasks requiring precise token recall (e.g. copying a specific value from earlier in the context), the approximation gap is measurable. For tasks that aggregate information over long spans, linear attention is often competitive with standard attention at a fraction of the compute.
