@@ -43,3 +43,37 @@ For a 70B-parameter model with $H = 64$ heads, $d_{\text{head}} = 128$, FP16 (2 
 $$\text{Cache per layer} = 2 \times 32768 \times 64 \times 128 \times 2 \approx 1\text{ GB}$$
 
 With 80 layers: 80 GB — the entire memory of an H100, before weights, activations, or any other state. The KV cache is the first wall.
+
+## Problem 1: The KV Cache Explodes
+
+The KV cache grows with every attention head — and standard MHA has a lot of heads. The fix is to ask: do all those heads actually need their own keys and values?
+
+### Multi-Query Attention
+
+**Multi-Query Attention (MQA)** (Shazeer, 2019) answers no. It keeps $H$ query heads but collapses keys and values to a single shared head:
+
+$$\text{head}_i = \text{Attention}(Q W^Q_i,\; K W^K,\; V W^V)$$
+
+A single $W^K$ and $W^V$ replaces the $H$ separate projections. The KV cache shrinks by $H\times$. For $H = 64$, that is a 64× memory reduction at inference time.
+
+The quality cost is real but small. Shazeer found perplexity increases of roughly 1–2% on language modeling tasks — acceptable for most applications, especially when the alternative is running out of memory.
+
+### Group Query Attention
+
+**Group Query Attention (GQA)** (Ainslie et al., 2023) generalizes MQA. Rather than collapsing to one K/V head, it creates $G$ groups. Each group of $H/G$ query heads shares one K/V head:
+
+$$\text{head}_i = \text{Attention}(Q W^Q_i,\; K W^K_{g(i)},\; V W^V_{g(i)})$$
+
+where $g(i) = \lfloor i \cdot G / H \rfloor$ maps each query head to its group.
+
+MHA is GQA with $G = H$. MQA is GQA with $G = 1$. GQA interpolates between them:
+
+| Variant | K/V heads | Cache vs. MHA | Quality vs. MHA |
+|---|---|---|---|
+| MHA | $H$ | $1\times$ | Baseline |
+| GQA ($G$ groups) | $G$ | $H/G\times$ smaller | Near-identical |
+| MQA | $1$ | $H\times$ smaller | Small degradation |
+
+**Uptraining from MHA:** To convert an existing MHA checkpoint to GQA, Ainslie et al. propose mean-pooling the $H/G$ K/V head projections within each group to initialize the shared GQA head, then continuing training for a short period. This avoids training GQA models from scratch.
+
+GQA is now the default in most production LLMs: Llama 2 70B, Llama 3, Mistral 7B, and Gemma all use it.
