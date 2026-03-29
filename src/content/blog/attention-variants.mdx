@@ -6,6 +6,7 @@ tags: ["transformers", "attention", "LLM", "deep learning", "GQA", "flash attent
 ---
 
 import AttentionPatterns from '../../components/diagrams/AttentionPatterns.astro';
+import HeadStructure from '../../components/diagrams/HeadStructure.astro';
 
 Every modern large language model — GPT-4, Llama 3, Gemini, Mistral — is a transformer. Every transformer is built around attention. But the original mechanism from "Attention Is All You Need" (Vaswani et al., 2017) cannot scale to those lengths. No GPU that exists today can run it at 128K tokens.
 
@@ -75,6 +76,9 @@ MHA is GQA with $G = H$. MQA is GQA with $G = 1$. GQA interpolates between them:
 | MHA | $H$ | $1\times$ | Baseline |
 | GQA ($G$ groups) | $G$ | $H/G\times$ smaller | Near-identical |
 | MQA | $1$ | $H\times$ smaller | Small degradation |
+
+<HeadStructure />
+*Figure 2: How MHA, MQA, and GQA differ in their key/value head structure. Circles = query heads, rectangles = K/V head pairs.*
 
 **Uptraining from MHA:** To convert an existing MHA checkpoint to GQA, Ainslie et al. propose mean-pooling the $H/G$ K/V head projections within each group to initialize the shared GQA head, then continuing training for a short period. This avoids training GQA models from scratch.
 
