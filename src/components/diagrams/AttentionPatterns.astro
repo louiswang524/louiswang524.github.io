@@ -9,7 +9,8 @@ const LABEL_H = 28;
 const AXIS_H = 22;
 const TOTAL_W = PAD_LEFT + 3 * GRID_W + 2 * GAP + PAD_RIGHT;
 const GRID_Y = LABEL_H;
-const TOTAL_H = GRID_Y + GRID_W + AXIS_H + 10;
+const PAD_BOTTOM = 10;
+const TOTAL_H = GRID_Y + GRID_W + AXIS_H + PAD_BOTTOM;
 
 interface CellData {
   i: number;
@@ -26,7 +27,9 @@ function buildCells(kind: 'full' | 'sparse' | 'slide'): CellData[] {
       let fill = 'var(--accent)';
       let opacity: number;
       if (kind === 'full') {
-        opacity = Math.max(0.4, 1.0 - d * 0.075);
+        // fade from 1.0 at diagonal to 0.4 at max distance
+        const step = 0.6 / (N - 1); // spans 1.0 → 0.4 across 0..N-1
+        opacity = Math.max(0.4, 1.0 - d * step);
       } else if (kind === 'sparse') {
         const active = d <= 2 || j % 3 === 0;
         fill = active ? 'var(--accent)' : 'var(--bg-subtle)';
@@ -45,7 +48,7 @@ function buildCells(kind: 'full' | 'sparse' | 'slide'): CellData[] {
 const grids = [
   { label: 'Full Attention',   x: PAD_LEFT,                      cells: buildCells('full')   },
   { label: 'Sparse Attention', x: PAD_LEFT + GRID_W + GAP,        cells: buildCells('sparse') },
-  { label: 'Sliding Window',   x: PAD_LEFT + 2 * (GRID_W + GAP), cells: buildCells('slide')  },
+  { label: 'Sliding Window (causal)', x: PAD_LEFT + 2 * (GRID_W + GAP), cells: buildCells('slide') },
 ];
 ---
 
@@ -56,6 +59,17 @@ const grids = [
   style="display: block; max-width: 100%; margin: 2rem 0; overflow: visible;"
   aria-label="Attention pattern comparison: full, sparse, and sliding window"
 >
+  {/* Vertical "Query token ↑" label — rendered once, on the left of the first grid */}
+  <text
+    x={PAD_LEFT - 8}
+    y={GRID_Y + GRID_W / 2}
+    text-anchor="middle"
+    font-family="var(--font-sans)"
+    font-size="11"
+    fill="var(--text-muted)"
+    transform={`rotate(-90, ${PAD_LEFT - 8}, ${GRID_Y + GRID_W / 2})`}
+  >Query token ↑</text>
+
   {grids.map((grid) => (
     <g>
       <text
@@ -67,17 +81,6 @@ const grids = [
         font-weight="600"
         fill="var(--text-muted)"
       >{grid.label}</text>
-
-      {/* Vertical "Query token ↑" label */}
-      <text
-        x={grid.x - 8}
-        y={GRID_Y + GRID_W / 2}
-        text-anchor="middle"
-        font-family="var(--font-sans)"
-        font-size="11"
-        fill="var(--text-muted)"
-        transform={`rotate(-90, ${grid.x - 8}, ${GRID_Y + GRID_W / 2})`}
-      >Query token ↑</text>
 
       {grid.cells.map((cell) => (
         <rect
