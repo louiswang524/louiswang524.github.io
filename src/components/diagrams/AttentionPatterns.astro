@@ -1,12 +1,13 @@
 ---
 const CELL = 28;
 const N = 8;
-const GAP = 26;
+const GAP = 24;
 const GRID_W = CELL * N;
-const PAD_X = 14;
+const PAD_LEFT = 36;
+const PAD_RIGHT = 14;
 const LABEL_H = 28;
 const AXIS_H = 22;
-const TOTAL_W = PAD_X + 3 * GRID_W + 2 * GAP + PAD_X;
+const TOTAL_W = PAD_LEFT + 3 * GRID_W + 2 * GAP + PAD_RIGHT;
 const GRID_Y = LABEL_H;
 const TOTAL_H = GRID_Y + GRID_W + AXIS_H + 10;
 
@@ -25,13 +26,13 @@ function buildCells(kind: 'full' | 'sparse' | 'slide'): CellData[] {
       let fill = 'var(--accent)';
       let opacity: number;
       if (kind === 'full') {
-        opacity = Math.max(0.2, 1 - d * 0.1);
+        opacity = Math.max(0.4, 1.0 - d * 0.075);
       } else if (kind === 'sparse') {
         const active = d <= 2 || j % 3 === 0;
         fill = active ? 'var(--accent)' : 'var(--bg-subtle)';
         opacity = active ? 0.85 : 1;
       } else {
-        const active = d <= 2;
+        const active = Math.abs(i - j) <= 2 && j <= i;
         fill = active ? 'var(--accent)' : 'var(--bg-subtle)';
         opacity = active ? 0.85 : 1;
       }
@@ -42,66 +43,96 @@ function buildCells(kind: 'full' | 'sparse' | 'slide'): CellData[] {
 }
 
 const grids = [
-  { label: 'Full Attention',   x: PAD_X,                      cells: buildCells('full')   },
-  { label: 'Sparse Attention', x: PAD_X + GRID_W + GAP,        cells: buildCells('sparse') },
-  { label: 'Sliding Window',   x: PAD_X + 2 * (GRID_W + GAP), cells: buildCells('slide')  },
+  { label: 'Full Attention',   x: PAD_LEFT,                      cells: buildCells('full')   },
+  { label: 'Sparse Attention', x: PAD_LEFT + GRID_W + GAP,        cells: buildCells('sparse') },
+  { label: 'Sliding Window',   x: PAD_LEFT + 2 * (GRID_W + GAP), cells: buildCells('slide')  },
 ];
 ---
 
-<figure style="margin: 2rem 0; overflow-x: auto;">
-  <svg
-    width="100%"
-    viewBox={`0 0 ${TOTAL_W} ${TOTAL_H}`}
-    xmlns="http://www.w3.org/2000/svg"
-    style="display: block; max-width: 100%;"
-    aria-label="Attention pattern comparison: full, sparse, and sliding window"
-  >
-    {grids.map((grid) => (
-      <g>
-        <text
-          x={grid.x + GRID_W / 2}
-          y={LABEL_H - 6}
-          text-anchor="middle"
-          font-family="var(--font-sans)"
-          font-size="13"
-          font-weight="600"
-          fill="var(--text)"
-        >{grid.label}</text>
+<svg
+  width="100%"
+  viewBox={`0 0 ${TOTAL_W} ${TOTAL_H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display: block; max-width: 100%; margin: 2rem 0; overflow: visible;"
+  aria-label="Attention pattern comparison: full, sparse, and sliding window"
+>
+  {grids.map((grid) => (
+    <g>
+      <text
+        x={grid.x + GRID_W / 2}
+        y={LABEL_H - 6}
+        text-anchor="middle"
+        font-family="var(--font-sans)"
+        font-size="13"
+        font-weight="600"
+        fill="var(--text-muted)"
+      >{grid.label}</text>
 
-        {grid.cells.map((cell) => (
-          <rect
-            x={grid.x + cell.j * CELL}
-            y={GRID_Y + cell.i * CELL}
-            width={CELL - 1}
-            height={CELL - 1}
-            fill={cell.fill}
-            fill-opacity={cell.opacity}
-            rx="2"
-          />
-        ))}
+      {/* Vertical "Query token ↑" label */}
+      <text
+        x={grid.x - 8}
+        y={GRID_Y + GRID_W / 2}
+        text-anchor="middle"
+        font-family="var(--font-sans)"
+        font-size="11"
+        fill="var(--text-muted)"
+        transform={`rotate(-90, ${grid.x - 8}, ${GRID_Y + GRID_W / 2})`}
+      >Query token ↑</text>
 
+      {grid.cells.map((cell) => (
         <rect
-          x={grid.x - 0.5}
-          y={GRID_Y - 0.5}
-          width={GRID_W + 1}
-          height={GRID_W + 1}
-          fill="none"
-          stroke="var(--border)"
-          stroke-width="1"
+          x={grid.x + cell.j * CELL}
+          y={GRID_Y + cell.i * CELL}
+          width={CELL - 1}
+          height={CELL - 1}
+          fill={cell.fill}
+          fill-opacity={cell.opacity}
+          rx="2"
         />
+      ))}
 
-        <text
-          x={grid.x + GRID_W / 2}
-          y={GRID_Y + GRID_W + AXIS_H - 4}
-          text-anchor="middle"
-          font-family="var(--font-sans)"
-          font-size="11"
-          fill="var(--text-muted)"
-        >← Key tokens →</text>
-      </g>
-    ))}
-  </svg>
-  <figcaption style="text-align: center; font-style: italic; color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem;">
-    Figure 1: Attention patterns for an 8-token sequence. Colored cells = attended positions.
-  </figcaption>
-</figure>
+      {/* Internal vertical grid lines */}
+      {Array.from({ length: N - 1 }, (_, c) => c + 1).map((c) => (
+        <line
+          x1={grid.x + c * CELL}
+          y1={GRID_Y}
+          x2={grid.x + c * CELL}
+          y2={GRID_Y + GRID_W}
+          stroke="var(--border)"
+          stroke-width="0.5"
+        />
+      ))}
+
+      {/* Internal horizontal grid lines */}
+      {Array.from({ length: N - 1 }, (_, r) => r + 1).map((r) => (
+        <line
+          x1={grid.x}
+          y1={GRID_Y + r * CELL}
+          x2={grid.x + GRID_W}
+          y2={GRID_Y + r * CELL}
+          stroke="var(--border)"
+          stroke-width="0.5"
+        />
+      ))}
+
+      <rect
+        x={grid.x - 0.5}
+        y={GRID_Y - 0.5}
+        width={GRID_W + 1}
+        height={GRID_W + 1}
+        fill="none"
+        stroke="var(--border)"
+        stroke-width="0.5"
+      />
+
+      <text
+        x={grid.x + GRID_W / 2}
+        y={GRID_Y + GRID_W + AXIS_H - 4}
+        text-anchor="middle"
+        font-family="var(--font-sans)"
+        font-size="11"
+        fill="var(--text-muted)"
+      >← Key tokens →</text>
+    </g>
+  ))}
+</svg>

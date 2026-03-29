@@ -116,6 +116,8 @@ This is why Mistral achieves strong long-context performance despite attending t
 
 <AttentionPatterns />
 
+*Figure 1: Attention patterns for an 8-token sequence. Dark cells indicate attended positions.*
+
 ## Problem 3: Even $O(n \cdot W)$ Has Limits
 
 Sparse and sliding window patterns reduce the constant but do not change the complexity class. For very long sequences — or tasks where important context is globally distributed — fixed sparsity patterns miss signal. The deeper question is: can we reduce the complexity of attention from $O(n^2)$ to $O(n)$?
