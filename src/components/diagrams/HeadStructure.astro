@@ -1,11 +1,11 @@
 ---
-const R = 10;
-const H = 8;
+const CIRCLE_R = 10;
+const NUM_HEADS = 8;
 const COL_W = 220;
 const COL_GAP = 20;
 const PAD_X = 20;
 const PAD_TOP = 30;
-const Q_Y = PAD_TOP + R;
+const Q_Y = PAD_TOP + CIRCLE_R;
 const KV_Y = Q_Y + 80;
 const KV_W = 24;
 const KV_H = 16;
@@ -21,7 +21,7 @@ const colX = [
 
 // Query circle centers for each column
 function qxArr(cx: number): number[] {
-  return Array.from({ length: H }, (_, i) => cx + (i + 0.5) * (COL_W / H));
+  return Array.from({ length: NUM_HEADS }, (_, i) => cx + (i + 0.5) * (COL_W / NUM_HEADS));
 }
 
 // KV rect center-x positions per column
@@ -39,9 +39,9 @@ function kvTargetX(col: number, i: number): number {
 }
 
 const columns = [
-  { label: 'Multi-Head Attention', sublabel: '1× cache (baseline)', colIdx: 0 },
-  { label: 'Multi-Query Attention', sublabel: '8× smaller cache', colIdx: 1 },
-  { label: 'Group Query Attention', sublabel: '4× smaller cache', colIdx: 2 },
+  { label: 'Multi-Head Attention', sublabel: '1× cache (baseline)' },
+  { label: 'Multi-Query Attention', sublabel: '8× smaller cache' },
+  { label: 'Group Query Attention', sublabel: '4× smaller cache' },
 ];
 ---
 
@@ -50,9 +50,10 @@ const columns = [
   viewBox={`0 0 ${TOTAL_W} ${TOTAL_H}`}
   xmlns="http://www.w3.org/2000/svg"
   style="display: block; max-width: 100%; margin: 2rem 0; overflow: visible;"
+  role="img"
   aria-label="Head structure comparison: MHA, MQA, and GQA (G=2)"
 >
-  {columns.map(({ label, sublabel, colIdx }) => {
+  {columns.map(({ label, sublabel }, colIdx) => {
     const cx = colX[colIdx];
     const qxs = qxArr(cx);
     const kvs = kvCenters[colIdx];
@@ -74,7 +75,7 @@ const columns = [
         {qxs.map((qx, i) => (
           <line
             x1={qx}
-            y1={Q_Y + R}
+            y1={Q_Y + CIRCLE_R}
             x2={kvTargetX(colIdx, i)}
             y2={KV_Y}
             stroke="var(--border)"
@@ -87,7 +88,7 @@ const columns = [
           <circle
             cx={qx}
             cy={Q_Y}
-            r={R}
+            r={CIRCLE_R}
             fill="var(--accent)"
           />
         ))}
