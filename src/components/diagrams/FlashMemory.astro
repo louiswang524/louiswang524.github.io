@@ -14,7 +14,7 @@ const RIGHT_X = PAD + PANEL_W + PANEL_GAP;
 const GPU_X = 0;
 const GPU_Y = 30; // below panel title
 const GPU_W = PANEL_W;
-const GPU_H = PANEL_H;
+const GPU_H = PANEL_H - GPU_Y;  // GPU fills from its top to the panel bottom
 
 const SRAM_X = GPU_X + 16;
 const SRAM_Y = GPU_Y + 30;
@@ -70,8 +70,10 @@ const FLASH_ARROW_X = SRAM_X + SRAM_W / 2;
   viewBox={`0 0 ${TOTAL_W} ${TOTAL_H}`}
   xmlns="http://www.w3.org/2000/svg"
   style="display: block; max-width: 100%; margin: 2rem 0; overflow: visible;"
+  role="img"
   aria-label="Memory access comparison: Standard Attention vs Flash Attention"
 >
+  <title>Memory access comparison: Standard Attention vs Flash Attention</title>
   <defs>
     <marker id="arr-start" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse">
       <path d="M0,0 L6,3 L0,6 Z" fill="var(--text-muted)" />
@@ -154,6 +156,15 @@ const FLASH_ARROW_X = SRAM_X + SRAM_W / 2;
         marker-end="url(#arr-end)"
       />
     ))}
+    {/* Background rect behind "3 round-trips" label (estimated text width: 72px at font-size 10) */}
+    <rect
+      x={SRAM_X + SRAM_W / 2 - 40}
+      y={ARROW_MID_Y - 7}
+      width={80}
+      height={14}
+      rx="2"
+      fill="var(--bg-subtle)"
+    />
     {/* "3 round-trips" label */}
     <text
       x={SRAM_X + SRAM_W / 2}
@@ -289,16 +300,17 @@ const FLASH_ARROW_X = SRAM_X + SRAM_W / 2;
         stroke-width="1"
       />
     ))}
-    {/* "tiles" label */}
+    {/* "tiles" label — placed below the SRAM box to avoid clipping against the border */}
     <text
       x={TILES_START_X + TILES_TOTAL_W / 2}
-      y={TILES_START_Y + TILES_TOTAL_H + 12}
+      y={SRAM_Y + SRAM_H + 12}
       text-anchor="middle"
       font-family="var(--font-sans)"
       font-size="11"
       fill="var(--text-muted)"
     >tiles</text>
 
+    {/* Simplified: shows only the output write. In reality, tiles are also read from HBM into SRAM. */}
     {/* Single downward arrow from SRAM to HBM */}
     <line
       x1={FLASH_ARROW_X}
