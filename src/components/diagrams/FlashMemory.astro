@@ -1,0 +1,350 @@
+---
+const PANEL_W = 300;
+const PANEL_H = 240;
+const PANEL_GAP = 40;
+const PAD = 20;
+const TOTAL_W = PAD * 2 + 2 * PANEL_W + PANEL_GAP;
+const TOTAL_H = PANEL_H + PAD * 2 + 30;
+
+// Panel X offsets
+const LEFT_X = PAD;
+const RIGHT_X = PAD + PANEL_W + PANEL_GAP;
+
+// Within each panel (relative to panel origin x, y = PAD)
+const GPU_X = 0;
+const GPU_Y = 30; // below panel title
+const GPU_W = PANEL_W;
+const GPU_H = PANEL_H;
+
+const SRAM_X = GPU_X + 16;
+const SRAM_Y = GPU_Y + 30;
+const SRAM_W = PANEL_W - 32;
+const SRAM_H = 60;
+
+const HBM_X = GPU_X + 16;
+const HBM_Y = GPU_Y + 30 + SRAM_H + 30; // 30px gap for arrows
+const HBM_W = PANEL_W - 32;
+const HBM_H = 90;
+
+// Arrow gap area: between SRAM bottom and HBM top
+const ARROW_Y1 = SRAM_Y + SRAM_H + 4;
+const ARROW_Y2 = HBM_Y - 4;
+const ARROW_MID_Y = (ARROW_Y1 + ARROW_Y2) / 2;
+
+// n×n matrix block inside HBM (standard panel)
+const MATRIX_W = HBM_W * 0.8;
+const MATRIX_H = HBM_H * 0.7;
+const MATRIX_X = HBM_X + (HBM_W - MATRIX_W) / 2;
+const MATRIX_Y = HBM_Y + (HBM_H - MATRIX_H) / 2;
+
+// Three arrows x positions (standard panel, relative to panel)
+const ARROW_SPACING = SRAM_W / 4;
+const ARROW_XS = [
+  SRAM_X + ARROW_SPACING,
+  SRAM_X + ARROW_SPACING * 2,
+  SRAM_X + ARROW_SPACING * 3,
+];
+
+// Tiles in SRAM (flash panel)
+const TILE_W = 24;
+const TILE_H = 18;
+const TILE_GAP = 4;
+const TILES_TOTAL_W = 2 * TILE_W + TILE_GAP;
+const TILES_TOTAL_H = 2 * TILE_H + TILE_GAP;
+const TILES_START_X = SRAM_X + (SRAM_W - TILES_TOTAL_W) / 2;
+const TILES_START_Y = SRAM_Y + (SRAM_H - TILES_TOTAL_H) / 2 - 4;
+
+const tiles = [
+  { col: 0, row: 0 },
+  { col: 1, row: 0 },
+  { col: 0, row: 1 },
+  { col: 1, row: 1 },
+];
+
+// Single output arrow (flash panel)
+const FLASH_ARROW_X = SRAM_X + SRAM_W / 2;
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${TOTAL_W} ${TOTAL_H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display: block; max-width: 100%; margin: 2rem 0; overflow: visible;"
+  aria-label="Memory access comparison: Standard Attention vs Flash Attention"
+>
+  <defs>
+    <marker id="arr-start" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse">
+      <path d="M0,0 L6,3 L0,6 Z" fill="var(--text-muted)" />
+    </marker>
+    <marker id="arr-end" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="var(--text-muted)" />
+    </marker>
+  </defs>
+
+  {/* ---- LEFT PANEL: Standard Attention ---- */}
+  <g transform={`translate(${LEFT_X}, ${PAD})`}>
+    {/* Panel title */}
+    <text
+      x={PANEL_W / 2}
+      y={16}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="14"
+      font-weight="bold"
+      fill="var(--text)"
+    >Standard Attention</text>
+
+    {/* GPU chip outline */}
+    <rect
+      x={GPU_X}
+      y={GPU_Y}
+      width={GPU_W}
+      height={GPU_H}
+      rx="8"
+      fill="var(--bg-subtle)"
+      stroke="var(--border)"
+      stroke-width="1.5"
+    />
+    <text
+      x={GPU_X + 8}
+      y={GPU_Y + 14}
+      font-family="var(--font-sans)"
+      font-size="11"
+      fill="var(--text-muted)"
+    >GPU</text>
+
+    {/* SRAM box */}
+    <rect
+      x={SRAM_X}
+      y={SRAM_Y}
+      width={SRAM_W}
+      height={SRAM_H}
+      rx="4"
+      fill="var(--bg)"
+      stroke="var(--accent)"
+      stroke-width="1.5"
+    />
+    <text
+      x={SRAM_X + SRAM_W / 2}
+      y={SRAM_Y + SRAM_H / 2 - 6}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="12"
+      fill="var(--text)"
+    >SRAM</text>
+    <text
+      x={SRAM_X + SRAM_W / 2}
+      y={SRAM_Y + SRAM_H / 2 + 10}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="11"
+      fill="var(--text-muted)"
+    >(fast, small)</text>
+
+    {/* Three double-headed arrows */}
+    {ARROW_XS.map((ax) => (
+      <line
+        x1={ax}
+        y1={ARROW_Y1}
+        x2={ax}
+        y2={ARROW_Y2}
+        stroke="var(--text-muted)"
+        stroke-width="1.5"
+        marker-start="url(#arr-start)"
+        marker-end="url(#arr-end)"
+      />
+    ))}
+    {/* "3 round-trips" label */}
+    <text
+      x={SRAM_X + SRAM_W / 2}
+      y={ARROW_MID_Y + 4}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="10"
+      fill="var(--text-muted)"
+    >3 round-trips</text>
+
+    {/* HBM box */}
+    <rect
+      x={HBM_X}
+      y={HBM_Y}
+      width={HBM_W}
+      height={HBM_H}
+      rx="4"
+      fill="var(--bg)"
+      stroke="var(--border)"
+      stroke-width="1.5"
+    />
+    <text
+      x={HBM_X + HBM_W / 2}
+      y={HBM_Y + 18}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="12"
+      fill="var(--text)"
+    >HBM</text>
+    <text
+      x={HBM_X + HBM_W / 2}
+      y={HBM_Y + 33}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="11"
+      fill="var(--text-muted)"
+    >(slow, large)</text>
+
+    {/* n×n matrix block */}
+    <rect
+      x={MATRIX_X}
+      y={MATRIX_Y}
+      width={MATRIX_W}
+      height={MATRIX_H}
+      rx="2"
+      fill="var(--accent)"
+      fill-opacity="0.2"
+      stroke="var(--accent)"
+      stroke-width="1"
+      stroke-dasharray="4 2"
+    />
+    <text
+      x={MATRIX_X + MATRIX_W / 2}
+      y={MATRIX_Y + MATRIX_H / 2 + 4}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="11"
+      fill="var(--text-muted)"
+    >n×n matrix</text>
+  </g>
+
+  {/* ---- RIGHT PANEL: Flash Attention ---- */}
+  <g transform={`translate(${RIGHT_X}, ${PAD})`}>
+    {/* Panel title */}
+    <text
+      x={PANEL_W / 2}
+      y={16}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="14"
+      font-weight="bold"
+      fill="var(--text)"
+    >Flash Attention</text>
+
+    {/* GPU chip outline */}
+    <rect
+      x={GPU_X}
+      y={GPU_Y}
+      width={GPU_W}
+      height={GPU_H}
+      rx="8"
+      fill="var(--bg-subtle)"
+      stroke="var(--border)"
+      stroke-width="1.5"
+    />
+    <text
+      x={GPU_X + 8}
+      y={GPU_Y + 14}
+      font-family="var(--font-sans)"
+      font-size="11"
+      fill="var(--text-muted)"
+    >GPU</text>
+
+    {/* SRAM box */}
+    <rect
+      x={SRAM_X}
+      y={SRAM_Y}
+      width={SRAM_W}
+      height={SRAM_H}
+      rx="4"
+      fill="var(--bg)"
+      stroke="var(--accent)"
+      stroke-width="1.5"
+    />
+    <text
+      x={SRAM_X + SRAM_W / 2}
+      y={SRAM_Y + SRAM_H / 2 - 6}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="12"
+      fill="var(--text)"
+    >SRAM</text>
+    <text
+      x={SRAM_X + SRAM_W / 2}
+      y={SRAM_Y + SRAM_H / 2 + 10}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="11"
+      fill="var(--text-muted)"
+    >(fast, small)</text>
+
+    {/* Tiles 2×2 grid in SRAM */}
+    {tiles.map((t) => (
+      <rect
+        x={TILES_START_X + t.col * (TILE_W + TILE_GAP)}
+        y={TILES_START_Y + t.row * (TILE_H + TILE_GAP)}
+        width={TILE_W}
+        height={TILE_H}
+        rx="2"
+        fill="var(--accent)"
+        fill-opacity="0.6"
+        stroke="var(--accent)"
+        stroke-width="1"
+      />
+    ))}
+    {/* "tiles" label */}
+    <text
+      x={TILES_START_X + TILES_TOTAL_W / 2}
+      y={TILES_START_Y + TILES_TOTAL_H + 12}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="11"
+      fill="var(--text-muted)"
+    >tiles</text>
+
+    {/* Single downward arrow from SRAM to HBM */}
+    <line
+      x1={FLASH_ARROW_X}
+      y1={ARROW_Y1}
+      x2={FLASH_ARROW_X}
+      y2={ARROW_Y2}
+      stroke="var(--text-muted)"
+      stroke-width="1.5"
+      marker-end="url(#arr-end)"
+    />
+    {/* "output O only" label */}
+    <text
+      x={FLASH_ARROW_X + 6}
+      y={ARROW_MID_Y + 4}
+      text-anchor="start"
+      font-family="var(--font-sans)"
+      font-size="11"
+      fill="var(--text-muted)"
+    >output O only</text>
+
+    {/* HBM box */}
+    <rect
+      x={HBM_X}
+      y={HBM_Y}
+      width={HBM_W}
+      height={HBM_H}
+      rx="4"
+      fill="var(--bg)"
+      stroke="var(--border)"
+      stroke-width="1.5"
+    />
+    <text
+      x={HBM_X + HBM_W / 2}
+      y={HBM_Y + 18}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="12"
+      fill="var(--text)"
+    >HBM</text>
+    <text
+      x={HBM_X + HBM_W / 2}
+      y={HBM_Y + 33}
+      text-anchor="middle"
+      font-family="var(--font-sans)"
+      font-size="11"
+      fill="var(--text-muted)"
+    >(slow, large)</text>
+  </g>
+</svg>

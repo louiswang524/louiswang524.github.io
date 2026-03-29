@@ -7,6 +7,7 @@ tags: ["transformers", "attention", "LLM", "deep learning", "GQA", "flash attent
 
 import AttentionPatterns from '../../components/diagrams/AttentionPatterns.astro';
 import HeadStructure from '../../components/diagrams/HeadStructure.astro';
+import FlashMemory from '../../components/diagrams/FlashMemory.astro';
 
 Every modern large language model — GPT-4, Llama 3, Gemini, Mistral — is a transformer. Every transformer is built around attention. But the original mechanism from "Attention Is All You Need" (Vaswani et al., 2017) cannot scale to those lengths. No GPU that exists today can run it at 128K tokens.
 
@@ -197,6 +198,10 @@ This produces the exact same result as computing softmax over all scores at once
 - **5–20×** reduction in GPU memory usage for the attention operation
 
 The mathematical output is bit-for-bit identical to standard attention.
+
+<FlashMemory />
+
+*Figure 3: Standard attention makes 3 round-trips over the n×n matrix. Flash Attention keeps tiles in SRAM and writes only the output to HBM.*
 
 ### Subsequent Versions
 
