@@ -220,14 +220,50 @@ No single variant won. Production models stack them because the bottlenecks they
 | Mistral 7B (2023) | GQA | Sliding Window ($W = 4096$) | Flash Attention 2 |
 | Llama 3 8B/70B (2024) | GQA | — | Flash Attention 2 |
 | Gemma 7B (2024) | GQA | — | Flash Attention 2 |
+| Qwen2 7B/72B (2024) | GQA | — | Flash Attention 2 |
+| Qwen2.5 72B (2024) | GQA | 128K (YaRN) | Flash Attention 2 |
+| DeepSeek-V2 (2024) | MLA | 128K | Flash Attention 2 |
+| DeepSeek-V3 (2024) | MLA | 128K | Flash Attention 2 |
+| Kimi k1.5 (2025) | MHA | 128K | Flash Attention 2 |
+| Kimi K2 (2025) | MLA | 128K | Flash Attention 2 |
 
 The combinations are not arbitrary. Each technique addresses a different bottleneck:
 
 - **GQA** attacks the KV cache — the memory cost per sequence during inference.
 - **Sliding Window Attention** attacks the per-layer compute cost for long inputs.
 - **Flash Attention** attacks GPU memory bandwidth — it applies regardless of which attention variant you use.
+- **MLA** attacks the KV cache more aggressively than GQA, using low-rank compression instead of head-sharing.
 
-The practical decision tree: if you are building or fine-tuning a model and hitting KV cache memory limits → add GQA. If you are hitting sequence length limits → add sliding window or linear attention. If you are hitting training throughput → enable Flash Attention. These fixes do not conflict.
+### A New Direction: Multi-head Latent Attention (MLA)
+
+GQA reduces the KV cache by sharing key/value heads across query groups — but the cache still grows linearly with sequence length. DeepSeek-V2 (Liu et al., 2024) introduced a different approach: compress the KV cache into a low-dimensional latent vector and store that instead.
+
+The core idea: instead of caching full $K$ and $V$ matrices, compute a compressed latent $c^{KV} \in \mathbb{R}^{d_c}$ where $d_c \ll n_h \cdot d_h$:
+
+$$c^{KV} = W^{DKV} h$$
+
+At inference, decompress on the fly:
+
+$$K = W^{UK} c^{KV}, \quad V = W^{UV} c^{KV}$$
+
+Only $c^{KV}$ is cached. For DeepSeek-V2, this reduces the KV cache per token by 93.3% compared to standard MHA. GQA with $G = 8$ groups achieves roughly an 8× reduction; MLA achieves roughly a 57–93× reduction depending on configuration.
+
+One complication: Rotary Position Embeddings (RoPE) cannot be applied to compressed keys — position information is entangled with the compression. DeepSeek-V2 solves this with **decoupled RoPE**: a separate set of query and key vectors carries position, applied independently before the attention dot product. The compressed KV path handles content; the RoPE path handles position.
+
+MLA is compatible with Flash Attention and can be used alongside sliding window patterns. DeepSeek-V3 and Kimi K2 both adopted MLA directly, making it the dominant KV cache strategy for frontier MoE models as of 2025.
+
+### Qwen2 and Long-Context Extrapolation
+
+Qwen2 uses GQA across all model sizes and adds **Dual Chunk Attention (DCA)** for long-context inference. DCA splits the sequence into fixed-size chunks and uses three query types per token: one for attending within the same chunk, one for attending to the preceding chunk, and one for attending to all other chunks with relative position clamped. This allows Qwen2 to extrapolate from a 32K training context to 128K at inference without retraining, using position interpolation (YaRN) alongside DCA. Qwen2.5 extends the same approach to 1M tokens in the Turbo variant, adding sparse attention patterns based on MInference.
+
+### Decision Framework
+
+If you are building or fine-tuning a model:
+
+- Hitting **KV cache limits** during inference → add GQA (simpler, widely supported) or MLA (higher compression, more implementation complexity)
+- Hitting **sequence length limits** → add sliding window or linear attention
+- Hitting **training throughput** → enable Flash Attention (always do this regardless of attention variant)
+- Need **ultra-long context** without retraining → combine YaRN position scaling with DCA or sparse attention patterns
 
 **What this post does not cover:** state-space models (Mamba, S4) and hybrid architectures (Jamba, Zamba) represent a different branch of the scaling tree — replacing attention with selective state transitions rather than approximating it. That is a separate post.
 
@@ -254,3 +290,13 @@ The practical decision tree: if you are building or fine-tuning a model and hitt
 10. Dao, T. (2023). [FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning](https://arxiv.org/abs/2307.08691). *ICLR 2024*.
 
 11. Shah, J., Bikshandi, G., Zhang, Y., Thakkar, V., Ramani, P., & Dao, T. (2024). [FlashAttention-3: Fast and Accurate Attention with Asynchrony and Low-precision](https://arxiv.org/abs/2407.08608). *arXiv:2407.08608*.
+
+12. DeepSeek-AI, Liu, A., Feng, B., et al. (2024). [DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model](https://arxiv.org/abs/2405.04434). *arXiv:2405.04434*.
+
+13. DeepSeek-AI, Liu, A., Feng, B., et al. (2024). [DeepSeek-V3 Technical Report](https://arxiv.org/abs/2412.19437). *arXiv:2412.19437*.
+
+14. Qwen Team, Alibaba Group. (2024). [Qwen2 Technical Report](https://arxiv.org/abs/2407.10671). *arXiv:2407.10671*.
+
+15. Qwen Team, Alibaba Group. (2024). [Qwen2.5 Technical Report](https://arxiv.org/abs/2412.15115). *arXiv:2412.15115*.
+
+16. Kimi Team, Moonshot AI. (2025). [Kimi k1.5: Scaling Reinforcement Learning with LLMs](https://arxiv.org/abs/2501.12599). *arXiv:2501.12599*.
