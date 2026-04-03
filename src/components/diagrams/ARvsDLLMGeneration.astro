@@ -1,0 +1,126 @@
+---
+// Layout
+const W = 600, H = 290;
+const TW = 34, TH = 22, TGAP = 4;
+const TOKENS = ["The", "cat", "sat", "on", "the", "mat"];
+const N = TOKENS.length;
+const ROW_W = N * TW + (N - 1) * TGAP; // 224
+
+// Left panel (AR): x=0..285
+const LP = 8;
+const LP_TOK_X = LP + Math.round((278 - ROW_W) / 2); // ≈ 35
+
+// Right panel (dLLM): x=310..595
+const RP = 315;
+const RP_TOK_X = RP + Math.round((275 - ROW_W) / 2); // ≈ 341
+
+// Row tops
+const ROW_Y = [55, 120, 185];
+const STEP_LABELS_AR = ["t = 1", "t = 2", "t = 3"];
+const STEP_LABELS_DL = ["t = T", "t = T/2", "t = 0"];
+
+// AR: how many tokens revealed per step (left-to-right)
+const AR_REVEALED = [1, 2, 3];
+// dLLM: which token indices revealed per step (stochastic pattern)
+const DL_REVEALED: number[][] = [[], [0, 3, 5], [0, 1, 2, 3, 4, 5]];
+
+const tokX = (base: number, i: number) => base + i * (TW + TGAP);
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display:block; max-width:100%; margin:2rem 0; overflow:visible;"
+  role="img"
+  aria-label="Side-by-side comparison of autoregressive and diffusion LLM generation"
+>
+  <title>Side-by-side comparison: AR generates left-to-right; dLLM refines all positions in parallel</title>
+
+  {/* ── Panel labels ── */}
+  <text x="148" y="18" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--accent)">Autoregressive (AR)</text>
+  <text x="453" y="18" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="#f97316">Diffusion LM (dLLM)</text>
+
+  {/* ── Divider ── */}
+  <line x1="300" y1="25" x2="300" y2={H - 10} stroke="var(--border)" stroke-width="1" stroke-dasharray="4 3" />
+
+  {/* ── AR rows ── */}
+  {ROW_Y.map((ry, step) => (
+    <>
+      {/* Step label */}
+      <text x={LP + 2} y={ry + TH / 2 + 4} font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">{STEP_LABELS_AR[step]}</text>
+
+      {/* Token boxes */}
+      {TOKENS.map((tok, i) => {
+        const revealed = i < AR_REVEALED[step];
+        const x = tokX(LP_TOK_X, i);
+        return (
+          <>
+            <rect x={x} y={ry} width={TW} height={TH} rx="3"
+              fill={revealed ? "var(--accent)" : "none"}
+              fill-opacity={revealed ? "0.15" : "0"}
+              stroke={revealed ? "var(--accent)" : "var(--border)"}
+              stroke-width="1.5"
+            />
+            <text x={x + TW / 2} y={ry + TH / 2 + 4} text-anchor="middle"
+              font-family="var(--font-sans)" font-size="9"
+              fill={revealed ? "var(--accent)" : "var(--text-muted)"}>
+              {revealed ? tok : "···"}
+            </text>
+            {/* Lock on revealed token */}
+            {revealed && (
+              <text x={x + TW - 5} y={ry + 7} font-size="7" fill="var(--accent)">🔒</text>
+            )}
+          </>
+        );
+      })}
+
+      {/* Cursor arrow pointing to next position */}
+      {AR_REVEALED[step] < N && (
+        <polygon
+          points={`${tokX(LP_TOK_X, AR_REVEALED[step]) + TW / 2 - 4},${ry - 10} ${tokX(LP_TOK_X, AR_REVEALED[step]) + TW / 2 + 4},${ry - 10} ${tokX(LP_TOK_X, AR_REVEALED[step]) + TW / 2},${ry - 2}`}
+          fill="var(--accent)"
+        />
+      )}
+    </>
+  ))}
+
+  {/* ── dLLM rows ── */}
+  {ROW_Y.map((ry, step) => (
+    <>
+      <text x={RP + 2} y={ry + TH / 2 + 4} font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">{STEP_LABELS_DL[step]}</text>
+
+      {TOKENS.map((tok, i) => {
+        const revealed = DL_REVEALED[step].includes(i);
+        const x = tokX(RP_TOK_X, i);
+        return (
+          <>
+            <rect x={x} y={ry} width={TW} height={TH} rx="3"
+              fill={revealed ? "#f97316" : "var(--bg-subtle)"}
+              fill-opacity={revealed ? "0.15" : "1"}
+              stroke={revealed ? "#f97316" : "var(--border)"}
+              stroke-width="1.5"
+            />
+            <text x={x + TW / 2} y={ry + TH / 2 + 4} text-anchor="middle"
+              font-family="var(--font-sans)" font-size="9"
+              fill={revealed ? "#f97316" : "var(--text-muted)"}>
+              {revealed ? tok : "[M]"}
+            </text>
+          </>
+        );
+      })}
+
+      {/* Parallel indicator: bracket below row */}
+      {step === 1 && (
+        <>
+          <line x1={tokX(RP_TOK_X, 0)} y1={ry + TH + 3} x2={tokX(RP_TOK_X, N - 1) + TW} y2={ry + TH + 3} stroke="#f97316" stroke-width="1" stroke-opacity="0.5" />
+          <text x={RP_TOK_X + ROW_W / 2} y={ry + TH + 13} text-anchor="middle" font-family="var(--font-sans)" font-size="8" fill="#f97316">all positions scored in parallel</text>
+        </>
+      )}
+    </>
+  ))}
+
+  {/* ── Bottom labels ── */}
+  <text x="148" y={H - 5} text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">sequential · each token frozen on emit</text>
+  <text x="453" y={H - 5} text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">parallel · all positions revised each step</text>
+</svg>

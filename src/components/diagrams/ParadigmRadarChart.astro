@@ -1,0 +1,121 @@
+---
+// ── Geometry ──
+const W = 500, H = 360;
+const cx = 240, cy = 178, maxR = 112;
+const N = 6;
+
+// Axes: start at top (-π/2), go clockwise
+const angles = Array.from({ length: N }, (_, i) => -Math.PI / 2 + (2 * Math.PI * i) / N);
+
+// Labels: all "higher = better"
+// Speed = lower latency; Cost Efficiency = lower serving cost
+const labels = ['Cold-start', 'Data Efficiency', 'Item Churn', 'Personalization', 'Speed', 'Cost Efficiency'];
+
+// Scores 1–5 (higher always better)
+const seqScores = [2, 2, 1, 5, 5, 5]; // Semantic ID
+const llmScores = [5, 4, 5, 3, 2, 2]; // Fine-tuned LLM
+
+// Polygon point computation
+const toXY = (angle: number, score: number): [number, number] => [
+  cx + (score / 5) * maxR * Math.cos(angle),
+  cy + (score / 5) * maxR * Math.sin(angle),
+];
+
+const toPolygon = (scores: number[]) =>
+  scores.map((s, i) => toXY(angles[i], s).map(v => v.toFixed(1)).join(',')).join(' ');
+
+// Background grid polygons (20% intervals)
+const gridPolygon = (frac: number) =>
+  angles.map(a =>
+    `${(cx + frac * maxR * Math.cos(a)).toFixed(1)},${(cy + frac * maxR * Math.sin(a)).toFixed(1)}`
+  ).join(' ');
+
+// Axis line endpoints (at maxR)
+const axisEnds = angles.map(a => ({
+  x: (cx + maxR * Math.cos(a)).toFixed(1),
+  y: (cy + maxR * Math.sin(a)).toFixed(1),
+}));
+
+// Label positions (at labelR)
+const labelR = maxR + 26;
+const labelPos = angles.map((a, i) => ({
+  x: (cx + labelR * Math.cos(a)).toFixed(1),
+  y: (cy + labelR * Math.sin(a)).toFixed(1),
+  // text-anchor: center for top/bottom, start for right side, end for left side
+  anchor: i === 0 || i === 3 ? 'middle' : i < 3 ? 'start' : 'end',
+  // dy offset: -4 nudges top label up from axis endpoint; +14 pushes bottom label below
+  dy: i === 0 ? -4 : i === 3 ? 14 : 4,
+}));
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display:block; max-width:100%; margin:2rem 0; overflow:visible;"
+  role="img"
+  aria-label="Radar chart comparing semantic ID models and fine-tuned LLMs across six trade-off dimensions"
+>
+  <title>Radar chart comparing semantic ID models and fine-tuned LLMs across six trade-off dimensions</title>
+
+  {/* ── Grid polygons ── */}
+  {[0.2, 0.4, 0.6, 0.8, 1.0].map(frac => (
+    <polygon
+      points={gridPolygon(frac)}
+      fill="none"
+      stroke="var(--border)"
+      stroke-width={frac === 1.0 ? '1.5' : '1'}
+    />
+  ))}
+
+  {/* ── Axis lines ── */}
+  {axisEnds.map(({ x, y }) => (
+    <line x1={cx} y1={cy} x2={x} y2={y}
+      stroke="var(--border)" stroke-width="1" />
+  ))}
+
+  {/* ── Semantic ID polygon ── */}
+  <polygon
+    points={toPolygon(seqScores)}
+    fill="var(--accent)"
+    fill-opacity="0.18"
+    stroke="var(--accent)"
+    stroke-width="2"
+  />
+
+  {/* ── Fine-tuned LLM polygon ── */}
+  <polygon
+    points={toPolygon(llmScores)}
+    fill="#f97316"
+    fill-opacity="0.18"
+    stroke="#f97316"
+    stroke-width="2"
+  />
+
+  {/* ── Axis labels ── */}
+  {labelPos.map(({ x, y, anchor, dy }, i) => (
+    <text
+      x={x}
+      y={y}
+      dy={dy}
+      text-anchor={anchor}
+      dominant-baseline="middle"
+      font-family="var(--font-sans)"
+      font-size="12"
+      fill="var(--text)"
+    >
+      {labels[i]}
+    </text>
+  ))}
+
+  {/* ── Legend ── */}
+  <rect x={W - 175} y={H - 55} width={14} height={14} rx="2"
+    fill="var(--accent)" fill-opacity="0.3" stroke="var(--accent)" stroke-width="1.5" />
+  <text x={W - 156} y={H - 43}
+    font-family="var(--font-sans)" font-size="12" fill="var(--text)">Semantic ID models</text>
+
+  <rect x={W - 175} y={H - 32} width={14} height={14} rx="2"
+    fill="#f97316" fill-opacity="0.3" stroke="#f97316" stroke-width="1.5" />
+  <text x={W - 156} y={H - 20}
+    font-family="var(--font-sans)" font-size="12" fill="var(--text)">Fine-tuned LLMs</text>
+</svg>

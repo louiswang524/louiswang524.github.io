@@ -1,0 +1,51 @@
+---
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  headings: Heading[];
+}
+
+const { headings } = Astro.props;
+const filtered = headings.filter(h => h.depth >= 2 && h.depth <= 4);
+---
+
+{filtered.length > 1 && (
+  <aside class="toc-sidebar" id="toc">
+    <h2>On this page</h2>
+    <ul>
+      {filtered.map(h => (
+        <li class={`depth-${h.depth}`}>
+          <a href={`#${h.slug}`} data-slug={h.slug}>{h.text}</a>
+        </li>
+      ))}
+    </ul>
+  </aside>
+)}
+
+<script>
+  const links = document.querySelectorAll<HTMLAnchorElement>('#toc a[data-slug]');
+  if (links.length) {
+    const slugs = Array.from(links).map(l => l.dataset.slug!);
+    const targets = slugs.map(s => document.getElementById(s)).filter(Boolean) as HTMLElement[];
+
+    const observer = new IntersectionObserver(
+      entries => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            links.forEach(l => l.classList.remove('active'));
+            const active = document.querySelector<HTMLAnchorElement>(`#toc a[data-slug="${entry.target.id}"]`);
+            active?.classList.add('active');
+            break;
+          }
+        }
+      },
+      { rootMargin: '-10% 0% -80% 0%', threshold: 0 }
+    );
+
+    targets.forEach(t => observer.observe(t));
+  }
+</script>

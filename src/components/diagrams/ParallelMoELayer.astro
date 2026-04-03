@@ -1,0 +1,162 @@
+---
+const W = 620, H = 340;
+
+const L_CX = 155;
+const R_CX = 465;
+const BOX_W = 110, BOX_H = 28;
+const half = BOX_W / 2;
+
+const R_DENSE_W = 110, R_MOE_W = 110;
+
+const R_sum_x = R_CX, R_sum_y = 220;
+const L_sum_x = L_CX, L_sum_y = 210;
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display:block;max-width:100%;margin:2rem 0;overflow:visible;"
+  aria-label="Standard MoE vs Gemma 4 parallel dense+MoE FFN design"
+>
+  <defs>
+    <marker id="arr" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="var(--text-muted)" fill-opacity="0.6" />
+    </marker>
+    <marker id="arr-o" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#f97316" fill-opacity="0.8" />
+    </marker>
+  </defs>
+
+  {/* Panel titles */}
+  <text x={L_CX} y="20" text-anchor="middle"
+    font-family="var(--font-sans)" font-size="12" font-weight="600" fill="var(--text-muted)">
+    Standard MoE
+  </text>
+  <text x={R_CX} y="20" text-anchor="middle"
+    font-family="var(--font-sans)" font-size="12" font-weight="600" fill="var(--accent)">
+    Gemma 4 (parallel)
+  </text>
+
+  {/* Divider */}
+  <line x1="310" y1="28" x2="310" y2={H - 16}
+    stroke="var(--border)" stroke-width="1" stroke-dasharray="4 3" />
+
+  {/* LEFT PANEL — Standard MoE */}
+
+  {/* Input box */}
+  <rect x={L_CX - half} y={40} width={BOX_W} height={BOX_H} rx="5"
+    fill="var(--accent)" fill-opacity="0.10" stroke="var(--accent)" stroke-opacity="0.5" stroke-width="1" />
+  <text x={L_CX} y={40 + BOX_H / 2 + 4} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="10" fill="var(--accent)">Input x</text>
+
+  {/* Arrow: input to router */}
+  <line x1={L_CX} y1={40 + BOX_H} x2={L_CX} y2={104}
+    stroke="var(--text-muted)" stroke-opacity="0.6" stroke-width="1.2" marker-end="url(#arr)" />
+  <text x={L_CX + 8} y={40 + BOX_H + 22}
+    font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)" font-style="italic">replaces FFN entirely</text>
+
+  {/* Router + experts box */}
+  <rect x={L_CX - half} y={110} width={BOX_W} height={BOX_H} rx="5"
+    fill="var(--accent)" fill-opacity="0.10" stroke="var(--accent)" stroke-opacity="0.5" stroke-width="1" />
+  <text x={L_CX} y={110 + BOX_H / 2 + 4} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="9" fill="var(--accent)">Router + Top-8 Experts</text>
+
+  {/* Arrow: router to sum */}
+  <line x1={L_CX} y1={110 + BOX_H} x2={L_CX} y2={L_sum_y - 12}
+    stroke="var(--text-muted)" stroke-opacity="0.6" stroke-width="1.2" marker-end="url(#arr)" />
+
+  {/* Sum circle */}
+  <circle cx={L_sum_x} cy={L_sum_y} r="12"
+    fill="var(--bg-subtle)" stroke="var(--accent)" stroke-opacity="0.6" stroke-width="1.2" />
+  <text x={L_sum_x} y={L_sum_y + 5} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="13" fill="var(--accent)">Σ</text>
+
+  {/* Arrow: sum to output */}
+  <line x1={L_CX} y1={L_sum_y + 12} x2={L_CX} y2={274}
+    stroke="var(--text-muted)" stroke-opacity="0.6" stroke-width="1.2" marker-end="url(#arr)" />
+
+  {/* Output box */}
+  <rect x={L_CX - half} y={280} width={BOX_W} height={BOX_H} rx="5"
+    fill="var(--accent)" fill-opacity="0.10" stroke="var(--accent)" stroke-opacity="0.5" stroke-width="1" />
+  <text x={L_CX} y={280 + BOX_H / 2 + 4} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="10" fill="var(--accent)">Output</text>
+
+  {/* RIGHT PANEL — Gemma 4 parallel */}
+
+  {/* Input box */}
+  <rect x={R_CX - half} y={40} width={BOX_W} height={BOX_H} rx="5"
+    fill="var(--accent)" fill-opacity="0.10" stroke="var(--accent)" stroke-opacity="0.5" stroke-width="1" />
+  <text x={R_CX} y={40 + BOX_H / 2 + 4} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="10" fill="var(--accent)">Input x</text>
+
+  {/* Fork line down from input */}
+  <line x1={R_CX} y1={40 + BOX_H} x2={R_CX} y2={100}
+    stroke="var(--text-muted)" stroke-opacity="0.5" stroke-width="1.2" />
+
+  {/* Fork to dense branch */}
+  <line x1={R_CX} y1={100} x2={R_CX - 55 + R_DENSE_W / 2} y2={100}
+    stroke="var(--text-muted)" stroke-opacity="0.5" stroke-width="1.2" />
+  <line x1={R_CX - 55 + R_DENSE_W / 2} y1={100} x2={R_CX - 55 + R_DENSE_W / 2} y2={124}
+    stroke="var(--text-muted)" stroke-opacity="0.5" stroke-width="1.2" marker-end="url(#arr)" />
+
+  {/* Fork to MoE branch */}
+  <line x1={R_CX} y1={100} x2={R_CX + 20 + R_MOE_W / 2} y2={100}
+    stroke="var(--text-muted)" stroke-opacity="0.5" stroke-width="1.2" />
+  <line x1={R_CX + 20 + R_MOE_W / 2} y1={100} x2={R_CX + 20 + R_MOE_W / 2} y2={124}
+    stroke="#f97316" stroke-opacity="0.6" stroke-width="1.2" marker-end="url(#arr-o)" />
+
+  {/* Dense GeGLU box */}
+  <rect x={R_CX - 55} y={130} width={R_DENSE_W} height={BOX_H} rx="5"
+    fill="var(--accent)" fill-opacity="0.10" stroke="var(--accent)" stroke-opacity="0.55" stroke-width="1" />
+  <text x={R_CX - 55 + R_DENSE_W / 2} y={130 + BOX_H / 2 + 4} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="10" fill="var(--accent)">Dense GeGLU</text>
+  <text x={R_CX - 55 + R_DENSE_W / 2} y={130 + BOX_H + 14} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">always active</text>
+
+  {/* MoE box */}
+  <rect x={R_CX + 20} y={130} width={R_MOE_W} height={BOX_H} rx="5"
+    fill="#f97316" fill-opacity="0.10" stroke="#f97316" stroke-opacity="0.6" stroke-width="1" />
+  <text x={R_CX + 20 + R_MOE_W / 2} y={130 + BOX_H / 2 + 4} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="10" fill="#f97316">Router + Experts</text>
+  <text x={R_CX + 20 + R_MOE_W / 2} y={130 + BOX_H + 14} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">top-8 of 128</text>
+
+  {/* Dense branch to sum */}
+  <line x1={R_CX - 55 + R_DENSE_W / 2} y1={130 + BOX_H + 26} x2={R_CX - 55 + R_DENSE_W / 2} y2={R_sum_y - 10}
+    stroke="var(--text-muted)" stroke-opacity="0.5" stroke-width="1.2" />
+  <line x1={R_CX - 55 + R_DENSE_W / 2} y1={R_sum_y - 10} x2={R_sum_x - 12} y2={R_sum_y - 10}
+    stroke="var(--text-muted)" stroke-opacity="0.5" stroke-width="1.2" />
+  <line x1={R_sum_x - 12} y1={R_sum_y - 10} x2={R_sum_x - 12} y2={R_sum_y}
+    stroke="var(--text-muted)" stroke-opacity="0.5" stroke-width="1.2" marker-end="url(#arr)" />
+
+  {/* MoE branch to sum */}
+  <line x1={R_CX + 20 + R_MOE_W / 2} y1={130 + BOX_H + 26} x2={R_CX + 20 + R_MOE_W / 2} y2={R_sum_y - 10}
+    stroke="#f97316" stroke-opacity="0.5" stroke-width="1.2" />
+  <line x1={R_CX + 20 + R_MOE_W / 2} y1={R_sum_y - 10} x2={R_sum_x + 12} y2={R_sum_y - 10}
+    stroke="#f97316" stroke-opacity="0.5" stroke-width="1.2" />
+  <line x1={R_sum_x + 12} y1={R_sum_y - 10} x2={R_sum_x + 12} y2={R_sum_y}
+    stroke="#f97316" stroke-opacity="0.5" stroke-width="1.2" marker-end="url(#arr-o)" />
+
+  {/* Sum circle */}
+  <circle cx={R_sum_x} cy={R_sum_y} r="12"
+    fill="var(--bg-subtle)" stroke="var(--accent)" stroke-opacity="0.6" stroke-width="1.2" />
+  <text x={R_sum_x} y={R_sum_y + 5} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="14" fill="var(--accent)">⊕</text>
+
+  {/* Sum to output */}
+  <line x1={R_CX} y1={R_sum_y + 12} x2={R_CX} y2={274}
+    stroke="var(--text-muted)" stroke-opacity="0.6" stroke-width="1.2" marker-end="url(#arr)" />
+
+  {/* Output box */}
+  <rect x={R_CX - half} y={280} width={BOX_W} height={BOX_H} rx="5"
+    fill="var(--accent)" fill-opacity="0.10" stroke="var(--accent)" stroke-opacity="0.5" stroke-width="1" />
+  <text x={R_CX} y={280 + BOX_H / 2 + 4} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="10" fill="var(--accent)">Output</text>
+
+  {/* Caption */}
+  <text x={W / 2} y={H - 4} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">
+    Standard MoE: FFN replaced by experts. Gemma 4: dense FFN runs in parallel with experts — outputs summed.
+  </text>
+</svg>

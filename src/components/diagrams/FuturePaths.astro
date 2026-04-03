@@ -1,0 +1,79 @@
+---
+const W = 620, H = 240;
+
+const START_X = 30, START_Y = 110, START_W = 90, START_H = 36;
+const START_CX = START_X + START_W / 2;
+const START_CY = START_Y + START_H / 2;
+
+const BRANCH_X = START_X + START_W + 10;
+
+const END_W = 175, END_H = 36;
+const END_X = W - END_W - 10;
+const END_YS = [42, 102, 162];
+const PATH_LABELS = [
+  { label: "Quality gap persists", y: 28 },
+  { label: "Scaling laws confirmed", y: 88 },
+  { label: "Best of both paradigms", y: 148 },
+];
+const END_LABELS = [
+  "Niche: infilling & constrained gen",
+  "Broad adoption via parallel decoding",
+  "AR + diffusion hybrid (CoDAR-style)",
+];
+const PATH_NAMES = ["A — Niche specialization", "B — Quality convergence", "C — Hybrid architectures"];
+const PATH_STYLES = ["4 4", "none", "2 5"];
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display:block; max-width:100%; margin:2rem 0; overflow:visible;"
+  role="img"
+  aria-label="Three plausible futures for diffusion LLMs: niche specialization, quality convergence, or hybrid architectures"
+>
+  <title>Three plausible futures: A niche specialization, B quality convergence and broad adoption, C hybrid AR+diffusion architectures</title>
+
+  <defs>
+    <marker id="fp-arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="var(--border)" />
+    </marker>
+  </defs>
+
+  <rect x={START_X} y={START_Y} width={START_W} height={START_H} rx="6"
+    fill="var(--bg-subtle)" stroke="var(--border)" stroke-width="2" />
+  <text x={START_CX} y={START_Y + 13} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="10" font-weight="600" fill="var(--text)">2025</text>
+  <text x={START_CX} y={START_Y + 26} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">dLLMs exist</text>
+
+  <text x={BRANCH_X + 18} y={START_CY - 4} font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">Open</text>
+  <text x={BRANCH_X + 18} y={START_CY + 7} font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">question</text>
+
+  {END_YS.map((ey, pi) => {
+    const eCY = ey + END_H / 2;
+    const ctrlX = (BRANCH_X + 60 + END_X) / 2;
+    const pathD = `M ${START_X + START_W},${START_CY} C ${ctrlX},${START_CY} ${ctrlX},${eCY} ${END_X},${eCY}`;
+    return (
+      <>
+        <path d={pathD} fill="none"
+          stroke="var(--border)" stroke-width={pi === 1 ? "2" : "1.5"}
+          stroke-dasharray={PATH_STYLES[pi]}
+          marker-end="url(#fp-arr)"
+        />
+        <text x={ctrlX - 20} y={PATH_LABELS[pi].y}
+          text-anchor="middle" font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">
+          {PATH_LABELS[pi].label}
+        </text>
+        <text x={BRANCH_X + 65} y={PATH_LABELS[pi].y + 11}
+          font-family="var(--font-sans)" font-size="8" fill="var(--text-muted)" font-style="italic">
+          {PATH_NAMES[pi]}
+        </text>
+        <rect x={END_X} y={ey} width={END_W} height={END_H} rx="6"
+          fill="var(--bg-subtle)" stroke="var(--border)" stroke-width="1.5" />
+        <text x={END_X + END_W / 2} y={ey + END_H / 2 + 4} text-anchor="middle"
+          font-family="var(--font-sans)" font-size="9" fill="var(--text)">{END_LABELS[pi]}</text>
+      </>
+    );
+  })}
+</svg>

@@ -1,0 +1,127 @@
+---
+const W = 600, H = 250;
+
+// Left panel: continuous diffusion (embedding bar chart)
+// Right panel: masked diffusion (token sequence)
+const LP_X = 10, LP_W = 270;
+const RP_X = 320, RP_W = 270;
+const DIVIDER_X = 300;
+
+// Shared timesteps
+const TSTEPS = ["t=0", "t=1", "t=2", "t=T"];
+const NY = 4;
+const ROW_Y = Array.from({ length: NY }, (_, i) => 28 + i * 55);
+
+// Continuous: 4 embedding dims, bar heights at t=0 (clean data)
+const BASE_HEIGHTS = [32, 18, 28, 12]; // clean embedding heights
+const BAR_W = 14, BAR_GAP = 6;
+const BARS_START_X_L = LP_X + (LP_W - (4 * BAR_W + 3 * BAR_GAP)) / 2; // center bars in panel
+
+// Noise levels per timestep (0 = clean, 1 = fully noisy)
+const NOISE_LEVELS = [0, 0.3, 0.65, 1.0];
+
+// Masked diffusion: 5-token sequence
+const MTOKENS = ["The", "cat", "sat", "on", "mat"];
+const MTW = 38, MTH = 22, MTGAP = 4;
+const MROW_W = MTOKENS.length * MTW + (MTOKENS.length - 1) * MTGAP;
+const MSTART_X = RP_X + (RP_W - MROW_W) / 2;
+
+// Masked tokens at each timestep
+const MASKED_T: boolean[][] = [
+  [false, false, false, false, false],
+  [false, true,  false, false, false],
+  [false, true,  true,  false, true ],
+  [true,  true,  true,  true,  true ],
+];
+
+// Noisy heights: linear interpolation between clean and random-ish
+const noisyH = (base: number, noise: number, seed: number) => {
+  const randomH = [22, 36, 14, 30][seed % 4];
+  return Math.round(base * (1 - noise) + randomH * noise);
+};
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display:block; max-width:100%; margin:2rem 0; overflow:visible;"
+  role="img"
+  aria-label="Comparison of continuous diffusion (Gaussian noise on embeddings) versus masked diffusion (absorbing MASK tokens)"
+>
+  <title>Continuous diffusion corrupts embeddings with Gaussian noise; masked diffusion replaces tokens with MASK</title>
+
+  {/* ── Panel titles ── */}
+  <text x={LP_X + LP_W / 2} y={14} text-anchor="middle" font-family="var(--font-sans)" font-size="12" font-weight="600" fill="var(--accent)">Continuous Diffusion</text>
+  <text x={RP_X + RP_W / 2} y={14} text-anchor="middle" font-family="var(--font-sans)" font-size="12" font-weight="600" fill="#f97316">Masked Diffusion</text>
+
+  {/* ── Divider ── */}
+  <line x1={DIVIDER_X} y1={18} x2={DIVIDER_X} y2={H - 10} stroke="var(--border)" stroke-width="1" stroke-dasharray="4 3" />
+
+  {/* ── Continuous diffusion: bar charts ── */}
+  {TSTEPS.map((label, step) => {
+    const ry = ROW_Y[step];
+    const noise = NOISE_LEVELS[step];
+    const maxBarH = 38;
+    const barBottom = ry + maxBarH;
+    return (
+      <>
+        <text x={LP_X + 28} y={ry + maxBarH / 2 + 4} text-anchor="end"
+          font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">{label}</text>
+        {BASE_HEIGHTS.map((bh, bi) => {
+          const h = noisyH(bh, noise, bi + step * 4);
+          const x = BARS_START_X_L + bi * (BAR_W + BAR_GAP);
+          return (
+            <rect x={x} y={barBottom - h} width={BAR_W} height={h} rx="2"
+              fill={noise > 0.5 ? "#f97316" : "var(--accent)"}
+              fill-opacity={0.4 + noise * 0.5}
+              stroke={noise > 0.5 ? "#f97316" : "var(--accent)"}
+              stroke-width="1"
+            />
+          );
+        })}
+        {/* Noise annotation */}
+        {noise > 0 && (
+          <text x={BARS_START_X_L + (4 * BAR_W + 3 * BAR_GAP) / 2} y={ry - 2}
+            text-anchor="middle" font-family="var(--font-sans)" font-size="8" fill="var(--text-muted)">
+            {noise >= 1 ? "pure noise" : `+${Math.round(noise * 100)}% noise`}
+          </text>
+        )}
+      </>
+    );
+  })}
+
+  {/* ── Masked diffusion: token rows ── */}
+  {TSTEPS.map((label, step) => {
+    const ry = ROW_Y[step];
+    return (
+      <>
+        <text x={RP_X + 28} y={ry + MTH / 2 + 4} text-anchor="end"
+          font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">{label}</text>
+        {MTOKENS.map((tok, i) => {
+          const masked = MASKED_T[step][i];
+          const x = MSTART_X + i * (MTW + MTGAP);
+          return (
+            <g>
+              <rect x={x} y={ry} width={MTW} height={MTH} rx="3"
+                fill={masked ? "var(--bg-subtle)" : "#f97316"}
+                fill-opacity={masked ? "1" : "0.15"}
+                stroke={masked ? "var(--border)" : "#f97316"}
+                stroke-width="1.5"
+              />
+              <text x={x + MTW / 2} y={ry + MTH / 2 + 4} text-anchor="middle"
+                font-family="var(--font-sans)" font-size="9"
+                fill={masked ? "var(--text-muted)" : "#f97316"}>
+                {masked ? "[M]" : tok}
+              </text>
+            </g>
+          );
+        })}
+      </>
+    );
+  })}
+
+  {/* ── Bottom equations ── */}
+  <text x={LP_X + LP_W / 2} y={H - 6} text-anchor="middle" font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">xₜ = √ᾱₜ x₀ + √(1−ᾱₜ) ε   ε ~ N(0,I)</text>
+  <text x={RP_X + RP_W / 2} y={H - 6} text-anchor="middle" font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">P(xₜ⁽ⁱ⁾ = [M]) = 1 − ᾱₜ</text>
+</svg>

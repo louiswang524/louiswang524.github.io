@@ -1,0 +1,199 @@
+---
+title: "Two Bets on Generative Recommendation: Semantic IDs vs. Fine-Tuned LLMs"
+description: "A head-to-head comparison of the two paradigms remaking recommendation — semantic ID autoregressive models and fine-tuned LLMs — with trade-off analysis and a look at how they're converging."
+date: 2026-03-29
+tags: ["recommendation systems", "generative AI", "LLM", "semantic IDs", "TIGER", "HSTU", "PLUM"]
+---
+
+import RQVAECodebook from '../../components/diagrams/RQVAECodebook.astro';
+import LLMPromptSerialization from '../../components/diagrams/LLMPromptSerialization.astro';
+import ParadigmRadarChart from '../../components/diagrams/ParadigmRadarChart.astro';
+import ConvergenceDiagram from '../../components/diagrams/ConvergenceDiagram.astro';
+
+## Introduction
+
+When transformer architectures proved powerful enough to frame recommendation as sequence generation, the field split into two distinct schools of thought.
+
+The first school concluded that items don't have a natural language — and built one. It learns a compact vocabulary of discrete tokens directly from item content and user behavior, then trains an autoregressive model to predict the next item's tokens given the user's history.
+
+The second school asked a different question: if a model has already read the internet and learned how the world works, does it already understand what users want? It takes a pretrained large language model and adapts it to a platform's recommendation task through fine-tuning on internal data.
+
+Both approaches are in production at scale. Both have strong empirical results. They make opposite bets.
+
+This post compares the two paradigms — their architectures, practical trade-off profiles, and why the boundary between them is blurring. For background on why the industry moved away from two-stage retrieval pipelines, see [Generative Recommendation in Production: HSTU, OneRec, and What Every Major Platform Is Building](/blog/generative-retrieval).
+
+## Paradigm A: Semantic ID-Based Autoregressive Models
+
+### The core idea
+
+Items don't map naturally to tokens a language model can predict. A product ID like `#4,821,033` carries no information about what the product is, who bought it, or how it relates to `#4,821,034`. Numeric IDs can't be generalized across. You need a token vocabulary where similar items land near each other in the code space — so that a model predicting tokens can generalize to items it has never seen in training.
+
+**Semantic IDs** solve this by learning a codebook: a mapping from each item's content embedding to a short sequence of discrete tokens. The most widely used approach is **RQ-VAE (Residual Quantized Variational AutoEncoder)** — the VAE component learns a continuous item embedding; residual quantization then discretizes it into tokens. The process runs in rounds:
+
+1. The item's embedding is compared against a learned codebook of prototype vectors. The nearest prototype index becomes the first token — call it C₁. This token captures the broadest semantic category.
+2. The residual (the difference between the embedding and the C₁ prototype) is quantized in a second round, producing C₂ — a finer-grained code.
+3. Repeat for 3–8 rounds total.
+
+The result is a short token sequence `[C₁, C₂, C₃, ...]` where the first token encodes broad category, and each subsequent token encodes finer detail. Two NBA highlight clips will share C₁ (sports) and C₂ (basketball) but differ at C₃ (specific game, specific player angle). Two items sharing a code prefix are semantically related — and the autoregressive model can exploit that structure to recommend related items it has never seen in training.
+
+<RQVAECodebook />
+*Figure 1: RQ-VAE quantization pipeline (left) and how two similar items share a code prefix (right). Items sharing C₁ and C₂ are semantically related; C₃ encodes fine-grained differences.*
+
+### Training the sequence model
+
+With items tokenized, recommendation becomes a standard sequence prediction problem. A transformer decoder receives the user's interaction history — each item represented as its `[C₁, C₂, C₃]` token sequence — and predicts the token sequence of the next item autoregressively.
+
+Training objective: minimize cross-entropy over the next-item token sequence given the user's history. This is structurally identical to language model training. The codebook and the sequence model are typically trained jointly or in two stages (content-based codes first, then behavioral fine-tuning).
+
+At inference, the model generates item tokens one at a time. A **prefix trie** (a tree of valid item code sequences) constrains decoding to valid items only — the model cannot hallucinate a non-existent item code because invalid prefixes are pruned during beam search.
+
+### Production systems
+
+**TIGER (Text ID GenerativE Recommendation)** [[paper]](https://arxiv.org/abs/2305.05065) (Alibaba, NeurIPS 2023) introduced generative retrieval to e-commerce. TIGER's codebook incorporates structured item attributes — category hierarchy, price tier, brand — directly into the quantization objective, so products with similar attributes cluster in the same code regions. This enables cross-sell and substitute recommendations for products the user has never seen.
+
+**HSTU (Hierarchical Sequential Transduction Units)** [[paper]](https://arxiv.org/abs/2402.17152) (Meta, ICML 2024) is the most influential production deployment. It powers Reels recommendation at billion-user scale. Three architectural choices make it work. Hierarchical temporal encoding separates short-term signals (last minute) from long-term context (last month). Learned relative position biases replace absolute encodings to handle recommendation's temporal structure. Linear-complexity attention keeps inference tractable — user histories span thousands of interactions.
+
+**OneRec** [[paper]](https://arxiv.org/abs/2502.18965) (Kuaishou, 2025) collapses the entire recommendation pipeline — retrieval and ranking — into a single autoregressive model. It generates an ordered list of recommendations directly by producing sequences of semantic ID tokens. Beam search over the prefix trie yields multiple candidate lists; the best is selected. OneRec V2 [[paper]](https://arxiv.org/abs/2508.20900) added two-stage codebook learning (content codes refined by engagement signals) and further improved quality and training stability.
+
+## Paradigm B: Fine-Tuned LLMs for Recommendation
+
+### The core idea
+
+A pretrained large language model has already read billions of documents. It knows that "NBA highlights" and "basketball game recap" are semantically related. It knows that a user who just watched three Python tutorials is probably interested in machine learning. None of this knowledge lives in a collaborative filtering model — it has to be learned from scratch from interaction logs.
+
+The fine-tuned LLM paradigm bets that this world knowledge transfers to recommendation. Take a capable language model, fine-tune it on internal interaction data, and let the pretrained representations do the semantic heavy lifting.
+
+The key design decision is how items are represented to the model. Unlike semantic ID systems, fine-tuned LLM systems represent items in natural language — titles, descriptions, metadata. These map directly to tokens the LLM already understands.
+
+### Fine-tuning strategies
+
+**Continued Pre-Training (CPT):** Before task-specific tuning, the model needs to internalize the platform's behavioral patterns — which items follow which, what engagement signals mean, how user tastes shift over time. CPT achieves this by training the model on sequences of user interactions formatted as text. The model learns the platform's vocabulary on top of its general world knowledge.
+
+**Instruction tuning:** The interaction history and recommendation task are framed as a prompt-completion pair. The model is fine-tuned to complete prompts like "Given this user's watch history: [list of titles], recommend: [target title]." This makes the recommendation objective explicit and allows multi-task training across recommendation, search, and other tasks.
+
+**Preference alignment:** A small number of systems extend fine-tuning with preference data using techniques inspired by RLHF (Reinforcement Learning from Human Feedback). The model is trained on pairs of (recommended item, rejected item). This steers it toward items users genuinely engage with, not just items that appear next in training sequences.
+
+<LLMPromptSerialization />
+*Figure 2: How a user's interaction history is serialized into a prompt for a fine-tuned LLM. The model generates the next item title autoregressively.*
+
+### Inference modes
+
+Running a 7B+ parameter model at query time is expensive — millisecond latency budgets and billion-user traffic make naive deployment impractical. This constraint drives two distinct inference modes:
+
+**Direct generation:** The model generates item identifiers (titles or IDs) as text. This is the most natural formulation but becomes expensive at large catalog sizes — the model must learn to generate from a vocabulary of millions of distinct items.
+
+**Feature injection:** The LLM runs offline. Its output representations are cached offline and injected as supplementary features into an existing ranker (such as a DLRM — Deep Learning Recommendation Model). The generation model never runs at serving time; only its cached outputs do. This trades expressive power for practical deployability.
+
+### Production systems
+
+**P5** [[paper]](https://arxiv.org/abs/2203.13366) (Geng et al., EMNLP 2022) established the paradigm. It unified five recommendation tasks — rating prediction, sequential recommendation, explanation generation, review summarization, and direct recommendation — as a single text-to-text problem using a T5 backbone. P5 demonstrated that a single pretrained language model fine-tuned with task-specific prompts could handle the full diversity of recommendation tasks. It is the conceptual ancestor of nearly every LLM-based recommendation system that followed.
+
+**PLUM** [[paper]](https://arxiv.org/abs/2510.07784) (Google, 2024) adapts Gemini for YouTube Shorts recommendation via Continued Pre-Training on watch sequences. A notable design choice: PLUM represents items as RQ-VAE semantic codes rather than text titles. The LLM learns to reason over a learned item vocabulary, not natural language. This is the most prominent example of convergence between the two paradigms (more on this in the convergence section). In live A/B testing, PLUM delivered a +4.96% CTR lift, with gains concentrated on cold-start scenarios where collaborative filtering has no signal.
+
+**LUM** [[paper]](https://arxiv.org/abs/2502.08309) (Alibaba, 2026) takes the feature injection path. A 7B parameter language model is pre-trained on tokenized behavior sequences, then queried with condition tokens representing task context (surface, device, time of day). Its output representations are cached offline and fed as features into Taobao's existing DLRM ranker — the LLM enhances the existing pipeline rather than replacing it. LUM demonstrated power-law scaling improvements up to 7B parameters and a +2.9% CTR gain in live testing.
+
+**LlamaRec** [[paper]](https://arxiv.org/abs/2407.07855) and **BIGRec** [[paper]](https://arxiv.org/abs/2308.12516) are open-source research baselines that fine-tune Llama-family models for sequential recommendation using instruction tuning. They provide useful reference implementations for teams exploring this paradigm without production-scale infrastructure.
+
+## Head-to-Head: Trade-off Analysis
+
+The two paradigms have substantially different profiles across the dimensions that matter most in production. The radar chart below makes the contrast visual; the table and explanations below make it precise.
+
+<ParadigmRadarChart />
+*Figure 3: Trade-off profiles of the two paradigms across six dimensions. Higher score is better in all cases; Speed and Cost Efficiency are inverted (higher = lower latency / lower serving cost).*
+
+| Dimension | Semantic ID Models | Fine-tuned LLMs |
+|---|---|---|
+| **Cold-start** | Weak | Strong |
+| **Data efficiency** | Needs large interaction logs | Leverages pretraining |
+| **Item churn handling** | Brittle — codebook rebuild required | Robust — new items described in text |
+| **Personalization depth** | Strong — end-to-end behavioral training | Depends on fine-tuning quality |
+| **Serving latency** | Fast — small vocab, trie decoding | Slow — large model, long context |
+| **Serving cost** | Lower | Higher — requires aggressive caching |
+
+### Cold-start
+
+Semantic ID systems are fundamentally behavioral: the codebook is trained on item interaction patterns, and the sequence model is trained to predict next items from prior ones. Both steps require interaction data. A brand-new item with no engagement history gets a weak codebook representation — or none at all. A brand-new user gives the model nothing to condition on. Cold-start is a structural blind spot.
+
+Fine-tuned LLMs can reason from item content. PLUM (Google) demonstrated this explicitly. The +4.96% CTR lift was largest for new users and new videos — precisely where collaborative filtering has no signal. The LLM's world knowledge about video content fills the gap. A new cooking tutorial can be recommended to a user who has watched cooking content. Not because of interaction data, but because the model understands what cooking tutorials are.
+
+### Data efficiency
+
+Training a high-quality RQ-VAE codebook requires a large item corpus with rich embeddings. Training the sequence model requires extensive interaction logs. Platforms with millions of daily active users have this data; smaller platforms may not.
+
+LLM-based systems require less task-specific data because they arrive with pretrained representations. Fine-tuning on a smaller behavioral dataset can produce useful recommendation signals on top of the LLM's existing world model. The trade-off: pretrained representations may not capture platform-specific signals (niche content categories, platform-specific engagement patterns) as well as a model trained entirely on the platform's own data.
+
+### Item churn
+
+Items change continuously on most platforms — new products added, videos uploaded, articles published. For semantic ID systems, a new item requires updating the codebook and re-indexing. The model must learn a valid code for the new item before it can be generated. If the platform adds thousands of new items daily, maintaining a fresh codebook requires a daily reindexing pipeline.
+
+LLM-based systems handle churn more gracefully. A new item is described by its title and metadata — text the model already knows how to process. There is no retraining required to surface new items. The cost: natural language representations may not capture fine-grained behavioral nuances that only emerge after an item accumulates interaction data.
+
+### Personalization depth
+
+Semantic ID models trained end-to-end on behavioral signals learn exactly what predicts engagement on the platform. Every aspect of the model — codebook, positional encoding, attention pattern — is shaped by what users actually watched, liked, and shared. HSTU at Meta is the clearest example: a model designed around recommendation's temporal structure, trained entirely on production engagement data.
+
+LLM fine-tuning may underfit niche behavioral patterns. The pretrained LLM's representations are powerful but general. Fine-tuning on behavioral data steers them toward the platform's patterns, but the steering signal competes with the prior from pretraining. For mainstream content categories well-represented in pretraining data, this is minor. For platform-specific niches, the semantic ID approach may generalize better — it has no prior to overcome.
+
+### Serving latency and cost
+
+Autoregressive decoding over a small vocabulary (typically 256–4096 codes per codebook, 3–8 rounds) with a prefix trie is substantially faster than generating over the full vocabulary of a large language model. HSTU and OneRec serve at millisecond latencies at billion-user scale.
+
+In reported deployments, LLM-based systems can be 10–100× slower per query. Aggressive offline pre-computation is required to be deployable. PLUM pre-computes item representations offline and caches them — the paper reports this reduces serving cost by over 95%, at the expense of slightly stale representations. LUM takes this further — the 7B model never runs at serving time, only its cached outputs do.
+
+## Convergence: The Two Paradigms Are Borrowing from Each Other
+
+The contrast laid out above is real — but unstable. The most capable systems in production today don't sit cleanly in one camp. They borrow the other's best ideas.
+
+<ConvergenceDiagram />
+*Figure 4: The two paradigms are converging. PLUM (Google) adopts semantic ID tokenization inside an LLM backbone. LUM (Alibaba) injects LLM representations as features into an ID-based pipeline. The shared substrate — a transformer decoder trained autoregressively — is the same in both.*
+
+### LLM systems adopting semantic IDs
+
+PLUM (Google) is the clearest example. The backbone is Gemini, a large pretrained language model. But items are not represented as text titles — they are represented as RQ-VAE semantic codes, exactly as in TIGER or OneRec.
+
+Gemini is adapted via Continued Pre-Training on sequences of these codes, learning to reason over a learned item vocabulary rather than natural language. Why would an LLM-based system abandon text? Because at YouTube scale, the catalog has hundreds of millions of videos. Generating a full video title autoregressively is slow and error-prone. A 4–8 token semantic code is far more tractable.
+
+More importantly, semantic codes carry behavioral structure that titles don't. Two videos assigned the same C₁ code are similar in the sense that users who watch one tend to watch the other — not necessarily because their titles are similar. PLUM retains Gemini's world knowledge while gaining the behavioral precision of semantic codes. This is the best of both paradigms.
+
+### ID-based systems borrowing LLM representations
+
+LUM (Alibaba) runs the flow in the opposite direction. The existing production system is an ID-based DLRM ranker with collaborative filtering features. Rather than replacing it, LUM runs a 7B language model offline — pre-trained on tokenized behavior sequences, queried via task context tokens — and injects its output representations as supplementary features.
+
+The DLRM ranker gains richer semantic representations without being rewritten. The deployment path is incremental: the LLM improves the existing pipeline rather than requiring a full architectural switch. For large organizations with mature ranking infrastructure, this is often the practical path.
+
+### The converging question
+
+Both paradigms now share the same basic architectural skeleton: a transformer decoder, trained autoregressively, on sequences of tokens derived from user interactions. The structural gap has narrowed to a single design choice: **what vocabulary do you use?**
+
+- **Learned discrete codes (semantic IDs):** dense, behaviorally calibrated, fast at inference, brittle on item churn
+- **Natural language tokens:** sparse over large vocabularies, semantically rich from pretraining, robust on churn, slow at inference
+
+This is a meaningful choice with real engineering consequences. But it is one design decision — not two separate fields. And the most sophisticated systems (PLUM, LUM) are choosing both answers in different layers of the same architecture.
+
+The question is shifting from "which paradigm?" to "which vocabulary, at which layer, trained on which signal?" That is a more productive question. The answer, increasingly, is: both.
+
+## So What: When to Choose Which
+
+Both paradigms work. The right choice depends on where your system is today and what problems are costing you the most.
+
+**If you have rich interaction logs and latency matters:** Semantic ID models. You have the data to train a meaningful codebook. Your catalog is large. Sub-100ms recommendation at scale is a hard requirement. Start with HSTU or OneRec as architectural references. Build the codebook training pipeline early — it's the hardest part to get right.
+
+**If cold-start or thin data is your primary problem:** Fine-tuned LLMs. New items and new users are where LLM world knowledge earns its cost. You don't need a year of interaction history to bootstrap recommendations — you need good item descriptions and a pretrained model that can reason about them. P5 and LlamaRec are useful reference implementations. Start with the feature injection pattern (LUM-style) if you have an existing ranking stack you don't want to replace.
+
+**If you're building at frontier scale and can invest in both:** Converged architecture. Semantic IDs give you a compact, behaviorally calibrated vocabulary. LLM pretraining gives you representation quality that pure collaborative filtering can't match. The LUM pattern — offline LLM features injected into an existing pipeline — is the pragmatic deployment path. PLUM — semantic ID codes processed by an LLM backbone — is the more aggressive architectural bet with larger upside.
+
+The fork in the road turned out to be less of a fork than it appeared. Both paradigms concluded that the right inductive bias for recommendation is sequential: users have histories, histories have structure, and structure predicts the future. Both settled on transformer decoders as the vehicle. The difference — what tokens you feed into that transformer — is real and consequential, but it's a design parameter, not a paradigm war.
+
+The most capable systems have stopped asking "semantic IDs or LLMs?" and started asking "which vocabulary, for which layer, trained on which signal?" That's a more productive question. And the answer, increasingly, is: both.
+
+## References
+
+- Geng et al. (2022). [Recommendation as Language Processing (RLP): A Unified Pretrain, Personalized Prompt & Predict Paradigm (P5)](https://arxiv.org/abs/2203.13366). EMNLP 2022.
+- Rajput et al. (2023). [Recommender Systems with Generative Retrieval (TIGER)](https://arxiv.org/abs/2305.05065). NeurIPS 2023.
+- Zhai et al. (2024). [Actions Speak Louder than Words: Trillion-Parameter Sequential Transducers for Generative Recommendations (HSTU)](https://arxiv.org/abs/2402.17152). ICML 2024.
+- Rajput et al. (2024). [PLUM: Adapting Pre-trained Language Models for Generative Recommendations](https://arxiv.org/abs/2510.07784).
+- Kuaishou Team (2025). [OneRec: Unifying Retrieve and Rank with Generative Recommender and Iterative Preference Alignment](https://arxiv.org/abs/2502.18965).
+- Kuaishou Team (2025). [OneRec-V2 Technical Report](https://arxiv.org/abs/2508.20900).
+- Alibaba Team (2026). [LUM: Large User Model for Generative Recommendation](https://arxiv.org/abs/2502.08309).
+- Yue et al. (2023). [BIGRec: A Grounded Instruction-Following Approach for Recommendation](https://arxiv.org/abs/2308.12516).
+- Zhang et al. (2024). [LlamaRec: Two-Stage Recommendation using Large Language Models for Ranking](https://arxiv.org/abs/2407.07855).

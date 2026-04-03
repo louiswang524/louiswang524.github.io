@@ -1,0 +1,92 @@
+---
+const W = 520, H = 255;
+const TOKENS = ["The", "cat", "sat", "on", "the", "mat"];
+const N = TOKENS.length;
+const TW = 52, TH = 26, TGAP = 6;
+const ROW_W = N * TW + (N - 1) * TGAP;
+const ROW_X = (W - ROW_W) / 2;
+
+const STEPS = ["t = T", "t = 3", "t = 2", "t = 1", "t = 0"];
+const ROW_Y = [20, 60, 100, 140, 180];
+
+// Which tokens are STILL masked (true = still masked)
+const MASKED: boolean[][] = [
+  [true,  true,  true,  true,  true,  true ],  // t=T: all masked
+  [true,  true,  true,  false, true,  true ],   // t=3: "on" revealed
+  [true,  false, true,  false, true,  false],   // t=2: "cat","on","mat"
+  [false, false, false, false, true,  false],   // t=1: almost done
+  [false, false, false, false, false, false],   // t=0: all revealed
+];
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display:block; max-width:100%; margin:2rem 0; overflow:visible;"
+  role="img"
+  aria-label="Iterative unmasking inference: starting from all MASK tokens, the sequence is gradually revealed"
+>
+  <title>Iterative unmasking: at each step all positions are scored in parallel, then tokens are selectively unmasked</title>
+
+  <defs>
+    <marker id="iu-arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#f97316" />
+    </marker>
+  </defs>
+
+  {/* ── Arrow: "Generation" ── */}
+  <line x1={W - 18} y1={ROW_Y[0] + TH / 2} x2={W - 18} y2={ROW_Y[4] + TH / 2}
+    stroke="#f97316" stroke-width="1.5" marker-end="url(#iu-arr)" />
+  <text x={W - 8} y={(ROW_Y[0] + ROW_Y[4]) / 2 + TH / 2} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="10" fill="#f97316"
+    transform={`rotate(90, ${W - 8}, ${(ROW_Y[0] + ROW_Y[4]) / 2 + TH / 2})`}>
+    Reverse process (generation) →
+  </text>
+
+  {/* ── Rows ── */}
+  {STEPS.map((label, step) => (
+    <>
+      <text x={ROW_X - 8} y={ROW_Y[step] + TH / 2 + 4} text-anchor="end"
+        font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">{label}</text>
+
+      {TOKENS.map((tok, i) => {
+        const masked = MASKED[step][i];
+        const x = ROW_X + i * (TW + TGAP);
+        return (
+          <g>
+            <rect x={x} y={ROW_Y[step]} width={TW} height={TH} rx="4"
+              fill={masked ? "var(--bg-subtle)" : "#f97316"}
+              fill-opacity={masked ? "1" : "0.15"}
+              stroke={masked ? "var(--border)" : "#f97316"}
+              stroke-width="1.5"
+            />
+            <text x={x + TW / 2} y={ROW_Y[step] + TH / 2 + 4} text-anchor="middle"
+              font-family="var(--font-sans)" font-size={masked ? "9" : "10"}
+              fill={masked ? "var(--text-muted)" : "#f97316"}>
+              {masked ? "[M]" : tok}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Parallel scoring indicator on step 1 (t=3) */}
+      {step === 1 && (
+        <>
+          <line x1={ROW_X} y1={ROW_Y[step] + TH + 4} x2={ROW_X + ROW_W} y2={ROW_Y[step] + TH + 4}
+            stroke="#f97316" stroke-width="1" stroke-opacity="0.4" />
+          <text x={ROW_X + ROW_W / 2} y={ROW_Y[step] + TH + 14} text-anchor="middle"
+            font-family="var(--font-sans)" font-size="8" fill="#f97316">
+            p_θ(x₀|xₜ) scored for all [M] positions in parallel
+          </text>
+        </>
+      )}
+    </>
+  ))}
+
+  {/* ── Final label ── */}
+  <text x={ROW_X + ROW_W / 2} y={H - 4} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">
+    T steps total · each step scores all positions simultaneously
+  </text>
+</svg>

@@ -1,0 +1,110 @@
+---
+const W = 580, H = 240;
+
+// Box dimensions
+const BW = 185, BH = 110;
+const LX = 20,  RX = W - 20 - BW; // left box x=20, right box x=375
+const BY = 55;  // box top y
+const LCX = LX + BW / 2;  // left box center x = 112.5
+const RCX = RX + BW / 2;  // right box center x = 467.5
+const BCY = BY + BH / 2;  // box center y = 110
+
+// Arrow 1: ID → LLM (curves upward, labeled "PLUM")
+// Start: right edge of left box, above center
+// End: left edge of right box, same y
+const A1_X1 = LX + BW + 4;
+const A1_Y1 = BCY - 18;
+const A1_X2 = RX - 4;
+const A1_Y2 = BCY - 18;
+// Control point curves upward
+const A1_CPX = (A1_X1 + A1_X2) / 2;
+const A1_CPY = BY - 20;
+
+// Arrow 2: LLM → ID (curves downward, labeled "LUM")
+// Start: left edge of right box, below center
+// End: right edge of left box, same y
+const A2_X1 = RX - 4;
+const A2_Y1 = BCY + 18;
+const A2_X2 = LX + BW + 4;
+const A2_Y2 = BCY + 18;
+// Control point curves downward
+const A2_CPX = (A2_X1 + A2_X2) / 2;
+const A2_CPY = BY + BH + 20;
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display:block; max-width:100%; margin:2rem 0; overflow:visible;"
+  role="img"
+  aria-label="Convergence diagram: Semantic ID models and Fine-tuned LLMs borrowing techniques from each other"
+>
+  <title>Convergence diagram: Semantic ID models and Fine-tuned LLMs borrowing techniques from each other</title>
+  <defs>
+    <marker id="cv-arr-r" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="var(--accent)" />
+    </marker>
+    <marker id="cv-arr-l" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#f97316" />
+    </marker>
+  </defs>
+
+  {/* ── Left box: Semantic ID Models ── */}
+  <rect x={LX} y={BY} width={BW} height={BH} rx="6"
+    fill="var(--bg-subtle)" stroke="var(--accent)" stroke-width="2" />
+  <text x={LCX} y={BY + 22} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--accent)">Semantic ID Models</text>
+  <text x={LCX} y={BY + 46} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">custom token vocab</text>
+  <text x={LCX} y={BY + 62} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">behavioral training</text>
+  <text x={LCX} y={BY + 78} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">fast inference</text>
+  <text x={LCX} y={BY + 96} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">weak cold-start</text>
+
+  {/* ── Right box: Fine-tuned LLMs ── */}
+  <rect x={RX} y={BY} width={BW} height={BH} rx="6"
+    fill="var(--bg-subtle)" stroke="#f97316" stroke-width="2" />
+  <text x={RCX} y={BY + 22} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="13" font-weight="600" fill="#f97316">Fine-tuned LLMs</text>
+  <text x={RCX} y={BY + 46} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">natural language vocab</text>
+  <text x={RCX} y={BY + 62} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">world knowledge</text>
+  <text x={RCX} y={BY + 78} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">robust item churn</text>
+  <text x={RCX} y={BY + 96} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">strong cold-start</text>
+
+  {/* ── Arrow 1: ID → LLM (PLUM adopts semantic IDs) ── */}
+  <path
+    d={`M ${A1_X1},${A1_Y1} Q ${A1_CPX},${A1_CPY} ${A1_X2},${A1_Y2}`}
+    fill="none" stroke="var(--accent)" stroke-width="1.5"
+    stroke-dasharray="5 3"
+    marker-end="url(#cv-arr-r)"
+  />
+  <text x={(A1_X1 + A1_X2) / 2} y={A1_CPY + 12} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="11" fill="var(--accent)">
+    PLUM adopts RQ-VAE codes →
+  </text>
+
+  {/* ── Arrow 2: LLM → ID (LUM injects LLM features) ── */}
+  <path
+    d={`M ${A2_X1},${A2_Y1} Q ${A2_CPX},${A2_CPY} ${A2_X2},${A2_Y2}`}
+    fill="none" stroke="#f97316" stroke-width="1.5"
+    stroke-dasharray="5 3"
+    marker-end="url(#cv-arr-l)"
+  />
+  <text x={(A2_X1 + A2_X2) / 2} y={A2_CPY - 4} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="11" fill="#f97316">
+    ← LUM injects LLM representations
+  </text>
+
+  {/* ── Center label: shared substrate ── */}
+  <text x={W / 2} y={BCY + 4} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">shared substrate:</text>
+  <text x={W / 2} y={BCY + 18} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">transformer decoder</text>
+</svg>

@@ -1,0 +1,94 @@
+---
+// Chart dimensions
+const W = 520, H = 240;
+const PAD_L = 52, PAD_R = 20, PAD_T = 30, PAD_B = 48;
+const CW = W - PAD_L - PAD_R; // 448
+const CH = H - PAD_T - PAD_B; // 162
+
+const T = 100; // number of timesteps to simulate
+
+// cosine noise schedule: alpha_bar_t = cos(pi/2 * t/T)^2
+const alphaBar = (t: number) => Math.cos((Math.PI / 2) * (t / T)) ** 2;
+
+// Generate N=80 points for smooth curves
+const N = 80;
+const pts = Array.from({ length: N + 1 }, (_, k) => {
+  const t = (k / N) * T;
+  const ab = alphaBar(t);
+  const x = PAD_L + (t / T) * CW;
+  return { t, ab, x, ySignal: PAD_T + (1 - ab) * CH, yNoise: PAD_T + ab * CH };
+});
+
+const signalPath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)},${p.ySignal.toFixed(1)}`).join(' ');
+const noisePath  = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)},${p.yNoise.toFixed(1)}`).join(' ');
+
+// Shaded area between curves
+const areaPath = [
+  ...pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)},${p.ySignal.toFixed(1)}`),
+  ...[...pts].reverse().map((p) => `L ${p.x.toFixed(1)},${p.yNoise.toFixed(1)}`),
+  'Z'
+].join(' ');
+
+// Grid lines at y values for 0.25, 0.5, 0.75
+const gridYs = [0.25, 0.5, 0.75].map(v => ({ v, y: PAD_T + (1 - v) * CH }));
+// x-axis tick at midpoint
+const midX = PAD_L + CW / 2;
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display:block; max-width:100%; margin:2rem 0; overflow:visible;"
+  role="img"
+  aria-label="Noise schedule chart showing signal retention and noise level over diffusion timesteps"
+>
+  <title>Noise schedule: ᾱₜ (signal) decays from 1 to 0; 1−ᾱₜ (noise) grows from 0 to 1</title>
+
+  {/* ── Grid ── */}
+  {gridYs.map(({ v, y }) => (
+    <>
+      <line x1={PAD_L} y1={y.toFixed(1)} x2={PAD_L + CW} y2={y.toFixed(1)}
+        stroke="var(--border)" stroke-width="1" stroke-dasharray="3 3" />
+      <text x={PAD_L - 6} y={(y + 4).toFixed(1)} text-anchor="end"
+        font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">{v}</text>
+    </>
+  ))}
+
+  {/* ── Shaded area ── */}
+  <path d={areaPath} fill="var(--accent)" fill-opacity="0.06" />
+
+  {/* ── Signal line (ᾱₜ) ── */}
+  <path d={signalPath} fill="none" stroke="var(--accent)" stroke-width="2.5" />
+
+  {/* ── Noise line (1−ᾱₜ) ── */}
+  <path d={noisePath} fill="none" stroke="#f97316" stroke-width="2.5" />
+
+  {/* ── Axes ── */}
+  <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={PAD_T + CH} stroke="var(--border)" stroke-width="1.5" />
+  <line x1={PAD_L} y1={PAD_T + CH} x2={PAD_L + CW} y2={PAD_T + CH} stroke="var(--border)" stroke-width="1.5" />
+
+  {/* Y-axis ticks */}
+  <text x={PAD_L - 6} y={PAD_T + 4} text-anchor="end" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">1.0</text>
+  <text x={PAD_L - 6} y={PAD_T + CH + 4} text-anchor="end" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">0.0</text>
+
+  {/* X-axis labels */}
+  <text x={PAD_L} y={PAD_T + CH + 16} text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">0</text>
+  <text x={midX} y={PAD_T + CH + 16} text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">T/2</text>
+  <text x={PAD_L + CW} y={PAD_T + CH + 16} text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">T</text>
+  <text x={PAD_L + CW / 2} y={H - 6} text-anchor="middle" font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">Timestep t →</text>
+
+  {/* Y-axis label */}
+  <text x={12} y={PAD_T + CH / 2} text-anchor="middle" font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)"
+    transform={`rotate(-90, 12, ${PAD_T + CH / 2})`}>Value</text>
+
+  {/* Endpoint annotations */}
+  <text x={PAD_L + 4} y={PAD_T - 4} font-family="var(--font-sans)" font-size="10" fill="var(--accent)">x₀: clean data</text>
+  <text x={PAD_L + CW - 4} y={PAD_T - 4} text-anchor="end" font-family="var(--font-sans)" font-size="10" fill="#f97316">xT: pure noise</text>
+
+  {/* Legend */}
+  <line x1={W - 180} y1={20} x2={W - 160} y2={20} stroke="var(--accent)" stroke-width="2.5" />
+  <text x={W - 155} y={24} font-family="var(--font-sans)" font-size="11" fill="var(--text)">ᾱₜ (signal)</text>
+  <line x1={W - 180} y1={38} x2={W - 160} y2={38} stroke="#f97316" stroke-width="2.5" />
+  <text x={W - 155} y={42} font-family="var(--font-sans)" font-size="11" fill="var(--text)">1−ᾱₜ (noise)</text>
+</svg>

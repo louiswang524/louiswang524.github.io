@@ -1,0 +1,96 @@
+---
+const W = 500, H = 360;
+const cx = 230, cy = 168, maxR = 108;
+const N = 6;
+
+const angles = Array.from({ length: N }, (_, i) =>
+  -Math.PI / 2 + (2 * Math.PI * i) / N
+);
+
+const labels = [
+  'Gen. Quality',
+  'Inference Speed',
+  'Controllability',
+  'Reasoning',
+  'Scalability',
+  'Safety',
+];
+
+const arScores  = [5, 3, 2, 5, 4, 3];
+const dlScores  = [3, 4, 5, 2, 3, 3];
+
+const toXY = (angle: number, score: number): [number, number] => [
+  cx + (score / 5) * maxR * Math.cos(angle),
+  cy + (score / 5) * maxR * Math.sin(angle),
+];
+const toPolygon = (scores: number[]) =>
+  scores.map((s, i) => toXY(angles[i], s).join(',')).join(' ');
+
+const gridPolygon = (frac: number) =>
+  angles.map(a =>
+    `${(cx + frac * maxR * Math.cos(a)).toFixed(1)},${(cy + frac * maxR * Math.sin(a)).toFixed(1)}`
+  ).join(' ');
+
+const axisEnds = angles.map(a => ({
+  x: (cx + maxR * Math.cos(a)).toFixed(1),
+  y: (cy + maxR * Math.sin(a)).toFixed(1),
+}));
+
+const labelR = maxR + 26;
+const labelPos = angles.map((a, i) => ({
+  x: (cx + labelR * Math.cos(a)).toFixed(1),
+  y: (cy + labelR * Math.sin(a)).toFixed(1),
+  anchor: i === 0 || i === 3 ? 'middle' : i < 3 ? 'start' : 'end',
+  dy: i === 0 ? -4 : i === 3 ? 14 : 4,
+}));
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display:block; max-width:100%; margin:2rem 0; overflow:visible;"
+  role="img"
+  aria-label="Radar chart comparing AR LLMs and dLLMs across six dimensions"
+>
+  <title>Radar chart: AR LLMs vs dLLMs across generation quality, inference speed, controllability, reasoning, scalability, and safety</title>
+
+  {[0.2, 0.4, 0.6, 0.8, 1.0].map(frac => (
+    <polygon points={gridPolygon(frac)}
+      fill="none" stroke="var(--border)"
+      stroke-width={frac === 1.0 ? '1.5' : '1'} />
+  ))}
+
+  {axisEnds.map(({ x, y }) => (
+    <line x1={cx} y1={cy} x2={x} y2={y} stroke="var(--border)" stroke-width="1" />
+  ))}
+
+  <polygon points={toPolygon(arScores)}
+    fill="var(--accent)" fill-opacity="0.18"
+    stroke="var(--accent)" stroke-width="2" />
+
+  <polygon points={toPolygon(dlScores)}
+    fill="#f97316" fill-opacity="0.18"
+    stroke="#f97316" stroke-width="2" />
+
+  {labelPos.map(({ x, y, anchor, dy }, i) => (
+    <text x={x} y={y} dy={dy}
+      text-anchor={anchor} dominant-baseline="middle"
+      font-family="var(--font-sans)" font-size="12" fill="var(--text)">
+      {labels[i]}
+    </text>
+  ))}
+
+  <rect x={W - 145} y={H - 58} width={13} height={13} rx="2"
+    fill="var(--accent)" fill-opacity="0.3" stroke="var(--accent)" stroke-width="1.5" />
+  <text x={W - 127} y={H - 47} font-family="var(--font-sans)" font-size="11" fill="var(--text)">AR LLMs</text>
+
+  <rect x={W - 145} y={H - 38} width={13} height={13} rx="2"
+    fill="#f97316" fill-opacity="0.3" stroke="#f97316" stroke-width="1.5" />
+  <text x={W - 127} y={H - 27} font-family="var(--font-sans)" font-size="11" fill="var(--text)">dLLMs</text>
+
+  <text x={W / 2} y={H - 8} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">
+    Qualitative scores · 2025 evidence at matched compute · no verdict implied
+  </text>
+</svg>

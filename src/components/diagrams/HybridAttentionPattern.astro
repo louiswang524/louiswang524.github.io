@@ -1,0 +1,83 @@
+---
+const W = 600, H = 400;
+const LAYERS = 12;
+const BAR_H = 22;
+const BAR_GAP = 5;
+const BAR_X = 110;
+const BAR_W = 300;
+const START_Y = 68;
+const LABEL_X = 104;
+const ANNOT_X = BAR_X + BAR_W + 10;
+
+// Layers 5 and 11 (0-indexed) are global — one global per 6 layers (5:1 ratio)
+const isGlobal = (i: number) => (i + 1) % 6 === 0;
+
+const layers = Array.from({ length: LAYERS }, (_, i) => ({
+  i,
+  y: START_Y + i * (BAR_H + BAR_GAP),
+  global: isGlobal(i),
+}));
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display:block;max-width:100%;margin:2rem 0;overflow:visible;"
+  aria-label="Hybrid attention stack: 5 local sliding-window layers then 1 global full-attention layer, repeated"
+>
+  <title>Hybrid attention pattern in Gemma 4 — local and global layers</title>
+
+  {/* Title */}
+  <text x={W / 2} y="18" text-anchor="middle"
+    font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--text-muted)">
+    Hybrid Attention: 5 Local → 1 Global (per cycle)
+  </text>
+
+  {/* Legend */}
+  <rect x={BAR_X} y="30" width="13" height="13" rx="2"
+    fill="var(--accent)" fill-opacity="0.7" />
+  <text x={BAR_X + 18} y="41"
+    font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">
+    Local (sliding window) — KV cache: O(w)
+  </text>
+  <rect x={BAR_X + 220} y="30" width="13" height="13" rx="2"
+    fill="#f97316" fill-opacity="0.8" />
+  <text x={BAR_X + 238} y="41"
+    font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">
+    Global (full attention) — KV cache: O(n)
+  </text>
+
+  {/* Layer bars */}
+  {layers.map(({ i, y, global }) => (
+    <g>
+      <text x={LABEL_X} y={y + BAR_H / 2 + 4} text-anchor="end"
+        font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">
+        Layer {i}
+      </text>
+      <rect x={BAR_X} y={y} width={BAR_W} height={BAR_H} rx="3"
+        fill={global ? "#f97316" : "var(--accent)"}
+        fill-opacity={global ? 0.18 : 0.12}
+        stroke={global ? "#f97316" : "var(--accent)"}
+        stroke-opacity={global ? 0.85 : 0.55}
+        stroke-width="1"
+      />
+      <text x={BAR_X + 8} y={y + BAR_H / 2 + 4}
+        font-family="var(--font-sans)" font-size="10" font-weight={global ? "600" : "400"}
+        fill={global ? "#f97316" : "var(--accent)"}>
+        {global ? "Global — full self-attention" : "Local — sliding window"}
+      </text>
+      <text x={ANNOT_X} y={y + BAR_H / 2 + 4}
+        font-family="var(--font-sans)" font-size="10" font-weight={global ? "600" : "400"}
+        fill={global ? "#f97316" : "var(--text-muted)"}>
+        {global ? "O(n)" : "O(w)"}
+      </text>
+    </g>
+  ))}
+
+  {/* Caption */}
+  <text x={W / 2} y={H - 8} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">
+    w = fixed window size (constant with n). n = full sequence length (grows with context).
+  </text>
+</svg>

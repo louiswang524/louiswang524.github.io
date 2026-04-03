@@ -1,0 +1,87 @@
+---
+const W = 620, H = 180;
+
+// Timeline bar
+const TL_Y = 90;         // Y of timeline center
+const TL_X1 = 40;        // start x
+const TL_X2 = W - 30;    // end x
+
+// Models: [name, year-label, x position, color, key idea, above/below]
+type Model = { name: string; year: string; x: number; color: string; idea: string; above: boolean };
+const MODELS: Model[] = [
+  { name: "Plaid",   year: "2023", x: 90,  color: "var(--text-muted)", idea: "Scaling laws;\n64× gap",        above: true  },
+  { name: "MDLM",    year: "2024", x: 220, color: "var(--accent)",     idea: "Principled\nELBO for MDM",      above: false },
+  { name: "LLaDA",   year: "2025", x: 350, color: "var(--accent)",     idea: "Scales to 8B;\nremasking",      above: true  },
+  { name: "Dream",   year: "2025", x: 460, color: "var(--accent)",     idea: "AR init +\nadaptive noise",     above: false },
+  { name: "Mercury", year: "2025", x: 560, color: "#f97316",           idea: "Commercial;\n1109 tok/s",        above: true  },
+];
+
+const DOT_R = 7;
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display:block; max-width:100%; margin:2rem 0; overflow:visible;"
+  role="img"
+  aria-label="Timeline of key diffusion language model milestones from Plaid 2023 to Mercury 2025"
+>
+  <title>dLLM model timeline: Plaid (2023), MDLM (2024), LLaDA, Dream, Mercury (2025)</title>
+
+  {/* ── Timeline line ── */}
+  <defs>
+    <marker id="tl-arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="var(--border)" />
+    </marker>
+  </defs>
+  <line x1={TL_X1} y1={TL_Y} x2={TL_X2} y2={TL_Y}
+    stroke="var(--border)" stroke-width="2" marker-end="url(#tl-arr)" />
+
+  {/* ── Paradigm span: masked diffusion ── */}
+  <line x1={180} y1={TL_Y} x2={TL_X2 - 10} y2={TL_Y}
+    stroke="var(--accent)" stroke-width="3" stroke-opacity="0.2" />
+  <text x={390} y={TL_Y + 22} text-anchor="middle" font-family="var(--font-sans)" font-size="9" fill="var(--accent)" fill-opacity="0.6">masked diffusion</text>
+
+  {/* ── Model dots + labels ── */}
+  {MODELS.map(({ name, year, x, color, idea, above }) => {
+    const labelY = above ? TL_Y - DOT_R - 8 : TL_Y + DOT_R + 14;
+    const ideaY  = above ? TL_Y - DOT_R - 28 : TL_Y + DOT_R + 34;
+    const lines  = idea.split('\n');
+    return (
+      <>
+        {/* Vertical tick */}
+        <line x1={x} y1={TL_Y - DOT_R} x2={x} y2={TL_Y + DOT_R}
+          stroke={color} stroke-width="1.5" />
+
+        {/* Dot */}
+        <circle cx={x} cy={TL_Y} r={DOT_R}
+          fill={color === "var(--text-muted)" ? "none" : color}
+          fill-opacity="0.2"
+          stroke={color} stroke-width="2" />
+
+        {/* Model name */}
+        <text x={x} y={labelY} text-anchor="middle"
+          font-family="var(--font-sans)" font-size="12" font-weight="600" fill={color}>{name}</text>
+
+        {/* Year */}
+        <text x={x} y={labelY + 12} text-anchor="middle"
+          font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">{year}</text>
+
+        {/* Key idea lines */}
+        {lines.map((line, li) => (
+          <text x={x} y={ideaY + li * 11} text-anchor="middle"
+            font-family="var(--font-sans)" font-size="9" fill="var(--text-muted)">{line}</text>
+        ))}
+      </>
+    );
+  })}
+
+  {/* ── Legend ── */}
+  <circle cx={TL_X1} cy={H - 12} r={5} fill="none" stroke="var(--text-muted)" stroke-width="1.5" />
+  <text x={TL_X1 + 10} y={H - 8} font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">continuous diffusion</text>
+  <circle cx={160} cy={H - 12} r={5} fill="var(--accent)" fill-opacity="0.2" stroke="var(--accent)" stroke-width="1.5" />
+  <text x={170} y={H - 8} font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">masked diffusion</text>
+  <circle cx={310} cy={H - 12} r={5} fill="#f97316" fill-opacity="0.2" stroke="#f97316" stroke-width="1.5" />
+  <text x={320} y={H - 8} font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">commercial deployment</text>
+</svg>

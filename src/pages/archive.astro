@@ -1,0 +1,41 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const byYear = new Map<number, typeof posts>();
+for (const post of posts) {
+  const year = post.data.date.getFullYear();
+  if (!byYear.has(year)) byYear.set(year, []);
+  byYear.get(year)!.push(post);
+}
+const years = [...byYear.keys()].sort((a, b) => b - a);
+---
+
+<BaseLayout title="Archive — Louis Wang">
+  <Header slot="header" />
+  <main>
+    <div class="container">
+      <h1 class="page-title">Archive</h1>
+      {years.map(year => (
+        <section class="archive-year">
+          <h2 class="archive-year-heading">{year}</h2>
+          <ul class="archive-list">
+            {byYear.get(year)!.map(post => (
+              <li class="archive-item">
+                <time class="archive-date">
+                  {post.data.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </time>
+                <a href={`/blog/${post.slug}`}>{post.data.title}</a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      {posts.length === 0 && <p style="color: var(--text-muted)">No posts yet.</p>}
+    </div>
+  </main>
+</BaseLayout>

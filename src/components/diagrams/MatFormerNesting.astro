@@ -1,0 +1,50 @@
+---
+const W = 600, H = 360;
+const CX = W / 2, CY = H / 2 + 10;
+
+const models = [
+  { label: "31B Dense",    sublabel: "31B params · 31B active at inference", w: 540, h: 280, fo: 0.04, so: 0.28 },
+  { label: "26B MoE",      sublabel: "26B params · 3.8B active at inference", w: 420, h: 210, fo: 0.08, so: 0.44 },
+  { label: "Effective 4B", sublabel: "~4B active params",                      w: 300, h: 140, fo: 0.14, so: 0.64 },
+  { label: "Effective 2B", sublabel: "~2B active params",                      w: 180, h:  70, fo: 0.22, so: 0.90 },
+];
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display:block;max-width:100%;margin:2rem 0;overflow:visible;"
+  aria-label="MatFormer: nested weight subsets — E2B inside E4B inside 26B inside 31B"
+>
+  <title>MatFormer nested model architecture — Gemma 4</title>
+
+  <text x={CX} y="20" text-anchor="middle"
+    font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--text-muted)">
+    MatFormer: Nested Weight Subsets
+  </text>
+
+  {models.map(({ label, sublabel, w, h, fo, so }) => (
+    <g>
+      <rect
+        x={CX - w / 2} y={CY - h / 2} width={w} height={h} rx="10"
+        fill="var(--accent)" fill-opacity={fo}
+        stroke="var(--accent)" stroke-opacity={so} stroke-width="1.5"
+      />
+      <text
+        x={CX - w / 2 + 12} y={CY - h / 2 + 18}
+        font-family="var(--font-sans)" font-size="11" font-weight="600"
+        fill="var(--accent)" fill-opacity={Math.min(1, so + 0.15)}
+      >{label}</text>
+      <text
+        x={CX - w / 2 + 12} y={CY - h / 2 + 32}
+        font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)"
+      >{sublabel}</text>
+    </g>
+  ))}
+
+  <text x={CX} y={H - 6} text-anchor="middle"
+    font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">
+    θ_E2B ⊂ θ_E4B ⊂ θ_26B ⊂ θ_31B — one checkpoint serves all four model sizes
+  </text>
+</svg>
