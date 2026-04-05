@@ -190,6 +190,31 @@ Sometimes you want a deliverable, not just an answer. `/kb-output` takes either 
 /kb-output --chart compare attention mechanisms across papers
 ```
 
+### `/kb-import` — Smart Obsidian Vault Import
+
+Most people already have an Obsidian vault — months or years of collected notes. Starting a new KB from scratch and ignoring all that felt wrong, so I added an import skill.
+
+```bash
+/kb-import ~/my-old-obsidian-vault
+```
+
+The LLM reads every `.md` file and classifies it:
+
+- **Concept articles** — structured, reference-style notes with clear definitions → go directly to `wiki/concepts/`, preserving all existing `[[wikilinks]]`
+- **Raw research notes** — fleeting notes, source references, personal shorthand → go to `raw/notes/` to be compiled
+
+The classification is judgment-based, not rule-based. A note titled "Attention Mechanism" with structured headings and a clear definition gets treated as a concept article. A note that says "attention paper — read again, connects to RLHF somehow??" gets treated as a raw note. After import, run `/kb-compile` and the raw notes get processed into the wiki like any other ingested content.
+
+### `/kb-merge-vault` — Combining Two KB Vaults
+
+If you run separate KBs for work and personal research, or you want to merge a collaborator's vault into yours:
+
+```bash
+/kb-merge-vault ~/knowledge-base-work
+```
+
+Non-conflicting content is copied as-is. When both vaults have a concept article for the same slug, the LLM reads both and synthesizes a clean merged article — same logic as `/kb-merge`. After everything is merged, `reflect_state.json` is reset so the next `/kb-reflect` runs a full discovery pass across all combined content, finding connections that span both vaults.
+
 ---
 
 ## The Search Engine
@@ -269,39 +294,6 @@ The obvious next steps:
 
 ---
 
-## Importing Existing Vaults
-
-One thing I didn't anticipate when building this: most people already have an Obsidian vault. They've been collecting notes for months or years. Starting a new KB from scratch and ignoring all that felt wrong.
-
-So I added two more skills.
-
-### `/kb-import` — Smart Obsidian Vault Import
-
-This takes an existing Obsidian vault and routes each note into the right place:
-
-```bash
-/kb-import ~/my-old-obsidian-vault
-```
-
-The LLM reads every `.md` file and classifies it:
-
-- **Concept articles** — structured, reference-style notes with clear definitions → go directly to `wiki/concepts/`, preserving all existing `[[wikilinks]]`
-- **Raw research notes** — fleeting notes, source references, personal shorthand → go to `raw/notes/` to be compiled
-
-The classification is judgment-based, not rule-based. A note titled "Attention Mechanism" with structured headings and a clear definition gets treated as a concept article. A note that says "attention paper — read again, connects to RLHF somehow??" gets treated as a raw note. After import, you run `/kb-compile` and the raw notes get processed into the wiki like any other ingested content.
-
-### `/kb-merge-vault` — Combining Two KB Vaults
-
-If you run separate KBs for work and personal research, or you want to merge a collaborator's vault into yours:
-
-```bash
-/kb-merge-vault ~/knowledge-base-work
-```
-
-Non-conflicting content is copied as-is. When both vaults have a concept article for the same slug, the LLM reads both and synthesizes a clean merged article — same logic as `/kb-merge`. After everything is merged, `reflect_state.json` is reset so the next `/kb-reflect` runs a full discovery pass across all combined content, finding connections that span both vaults.
-
----
-
 ## Getting Started
 
 The repo is open source: **[louiswang524/llm-knowledge-base](https://github.com/louiswang524/llm-knowledge-base)**. Nine skills, one setup command:
@@ -319,10 +311,6 @@ pip install -r requirements.txt
 ```
 
 Then open `~/knowledge-base` as an Obsidian vault and start ingesting. If you have an existing Obsidian vault, start with `/kb-import` instead.
-
-The thing that surprised me most building this: the synthesis articles. I didn't expect the reflect pass to produce anything interesting on a small wiki. But even with 10-15 sources compiled, the LLM found connections I hadn't made explicit — and wrote them up as standalone articles that immediately became the most useful things in the wiki.
-
-That's the part that feels qualitatively different from search. Search finds what you know is there. This surfaces what you didn't know you knew.
 
 ---
 
@@ -347,3 +335,9 @@ If you don't want something processed by the LLM or stored in version control, d
 - Keep the KB git remote private (or don't add one at all — local git history is enough for most use cases)
 - Don't ingest credentials, tokens, or secrets
 - Use `/kb-lint` periodically — the "missing concepts" check will surface any raw files that reference topics you may not have intended to compile
+
+---
+
+The thing that surprised me most building this: the synthesis articles. I didn't expect the reflect pass to produce anything interesting on a small wiki. But even with 10-15 sources compiled, the LLM found connections I hadn't made explicit — and wrote them up as standalone articles that immediately became the most useful things in the wiki.
+
+That's the part that feels qualitatively different from search. Search finds what you know is there. This surfaces what you didn't know you knew.
