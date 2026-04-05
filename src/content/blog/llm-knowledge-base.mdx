@@ -304,7 +304,7 @@ Non-conflicting content is copied as-is. When both vaults have a concept article
 
 ## Getting Started
 
-The repo is open source. Nine skills, one setup command:
+The repo is open source: **[louiswang524/llm-knowledge-base](https://github.com/louiswang524/llm-knowledge-base)**. Nine skills, one setup command:
 
 ```bash
 git clone https://github.com/louiswang524/llm-knowledge-base.git
@@ -323,3 +323,27 @@ Then open `~/knowledge-base` as an Obsidian vault and start ingesting. If you ha
 The thing that surprised me most building this: the synthesis articles. I didn't expect the reflect pass to produce anything interesting on a small wiki. But even with 10-15 sources compiled, the LLM found connections I hadn't made explicit — and wrote them up as standalone articles that immediately became the most useful things in the wiki.
 
 That's the part that feels qualitatively different from search. Search finds what you know is there. This surfaces what you didn't know you knew.
+
+---
+
+## A Note on Security
+
+A personal knowledge base is personal. Before using this system, understand what goes where.
+
+**What leaves your machine:**
+
+Every time you run `/kb-ingest`, `/kb-compile`, `/kb-ask`, or any other skill, the content of your raw files and wiki articles is sent to Anthropic's API as part of the Claude conversation context. This is unavoidable — the LLM needs to read your content to process it. Anthropic's data handling policies apply. If you're building a knowledge base around commercially sensitive work, healthcare information, or anything with confidentiality obligations, review those policies before ingesting.
+
+**Your KB git repo:**
+
+`setup.sh` initializes the KB directory as a git repo. That repo is **local only** — it is not pushed anywhere. The system never pushes to a remote on your behalf. If you choose to back up the KB to a remote (GitHub, GitLab, etc.), make sure that repo is **private**. A public KB repo exposes everything — your raw notes, compiled wiki, synthesis articles, Q&A outputs, and search index.
+
+**What to keep out:**
+
+If you don't want something processed by the LLM or stored in version control, don't ingest it. The system has no concept of "sensitive" vs "non-sensitive" content — it treats everything you feed it the same way. Some things belong in a password manager, not a knowledge base.
+
+**Safe defaults:**
+
+- Keep the KB git remote private (or don't add one at all — local git history is enough for most use cases)
+- Don't ingest credentials, tokens, or secrets
+- Use `/kb-lint` periodically — the "missing concepts" check will surface any raw files that reference topics you may not have intended to compile
