@@ -5,6 +5,8 @@ date: 2026-04-05
 tags: ["LLM", "knowledge management", "Claude Code", "AI agents", "personal tools"]
 ---
 
+import KBArchitecture from '../../components/diagrams/KBArchitecture.astro';
+
 Andrej Karpathy wrote a post recently that stuck with me:
 
 > *"Instead of getting answers in text/terminal, I like to have it render markdown files for me... I rarely ever write or edit the wiki manually, it's the domain of the LLM."*
@@ -41,15 +43,7 @@ The system has three layers:
 
 **3. Outputs** — Q&A answers, synthesis reports, lint reports, slides, charts. These get filed back into the wiki so future queries can reference them.
 
-```
-raw/        →  compile  →  wiki/concepts/
-                             wiki/sources/
-                             wiki/index.md
-                                  ↓
-                             /kb-reflect  (auto)
-                                  ↓
-                             synthesis articles
-```
+<KBArchitecture />
 
 The system ships as seven Claude Code skills — plain markdown files that tell Claude how to behave when you type a trigger command. Install once, use from any Claude Code session.
 

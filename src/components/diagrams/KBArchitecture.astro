@@ -1,0 +1,183 @@
+---
+// LLM Knowledge Base architecture flow diagram
+---
+
+<svg
+  width="100%"
+  viewBox="0 0 700 560"
+  xmlns="http://www.w3.org/2000/svg"
+  style="display: block; max-width: 100%; margin: 2rem 0; overflow: visible;"
+  role="img"
+  aria-label="LLM Knowledge Base architecture diagram"
+>
+  <title>LLM Knowledge Base — architecture flow</title>
+  <defs>
+    <marker id="kb-arr" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="var(--text-muted)" />
+    </marker>
+    <marker id="kb-arr-accent" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="var(--accent)" />
+    </marker>
+    <marker id="kb-arr-muted-dash" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="var(--text-muted)" />
+    </marker>
+  </defs>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- ROW 1: Input sources                           -->
+  <!-- ═══════════════════════════════════════════════ -->
+
+  <!-- Label above -->
+  <text x="350" y="16" text-anchor="middle" font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">Your Content</text>
+
+  <!-- URLs -->
+  <rect x="82" y="24" width="96" height="28" rx="5" fill="var(--bg-subtle)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="130" y="43" text-anchor="middle" font-family="var(--font-sans)" font-size="12" fill="var(--text)">URLs</text>
+
+  <!-- PDFs -->
+  <rect x="202" y="24" width="96" height="28" rx="5" fill="var(--bg-subtle)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="250" y="43" text-anchor="middle" font-family="var(--font-sans)" font-size="12" fill="var(--text)">PDFs</text>
+
+  <!-- Images -->
+  <rect x="322" y="24" width="96" height="28" rx="5" fill="var(--bg-subtle)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="370" y="43" text-anchor="middle" font-family="var(--font-sans)" font-size="12" fill="var(--text)">Images</text>
+
+  <!-- Notes -->
+  <rect x="442" y="24" width="96" height="28" rx="5" fill="var(--bg-subtle)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="490" y="43" text-anchor="middle" font-family="var(--font-sans)" font-size="12" fill="var(--text)">Notes</text>
+
+  <!-- Arrows from inputs → converge to single line → /kb-ingest -->
+  <line x1="130" y1="52" x2="130" y2="70" stroke="var(--text-muted)" stroke-width="1.2"/>
+  <line x1="250" y1="52" x2="250" y2="70" stroke="var(--text-muted)" stroke-width="1.2"/>
+  <line x1="370" y1="52" x2="370" y2="70" stroke="var(--text-muted)" stroke-width="1.2"/>
+  <line x1="490" y1="52" x2="490" y2="70" stroke="var(--text-muted)" stroke-width="1.2"/>
+  <!-- Horizontal merge bar -->
+  <line x1="130" y1="70" x2="490" y2="70" stroke="var(--text-muted)" stroke-width="1.2"/>
+  <!-- Single arrow down from centre of bar -->
+  <line x1="310" y1="70" x2="310" y2="88" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#kb-arr)"/>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- ROW 2: /kb-ingest                              -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <rect x="210" y="90" width="200" height="34" rx="7" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.8"/>
+  <text x="310" y="112" text-anchor="middle" font-family="var(--font-mono, monospace)" font-size="13" font-weight="600" fill="var(--accent)">/kb-ingest</text>
+
+  <!-- Arrow down -->
+  <line x1="310" y1="124" x2="310" y2="142" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#kb-arr)"/>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- ROW 3: raw/                                    -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <rect x="246" y="144" width="128" height="32" rx="5" fill="var(--bg-subtle)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="310" y="165" text-anchor="middle" font-family="var(--font-mono, monospace)" font-size="12" fill="var(--text)">raw/</text>
+  <text x="310" y="178" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">staged content</text>
+
+  <!-- Arrow down -->
+  <line x1="310" y1="176" x2="310" y2="194" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#kb-arr)"/>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- ROW 4: /kb-compile                             -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <rect x="210" y="196" width="200" height="34" rx="7" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.8"/>
+  <text x="310" y="218" text-anchor="middle" font-family="var(--font-mono, monospace)" font-size="13" font-weight="600" fill="var(--accent)">/kb-compile</text>
+
+  <!-- Arrow right to /kb-reflect -->
+  <line x1="410" y1="213" x2="468" y2="213" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#kb-arr-accent)"/>
+  <text x="439" y="208" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--accent)">auto</text>
+
+  <!-- /kb-reflect box -->
+  <rect x="470" y="197" width="148" height="34" rx="7" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.8"/>
+  <text x="544" y="219" text-anchor="middle" font-family="var(--font-mono, monospace)" font-size="12" font-weight="600" fill="var(--accent)">/kb-reflect</text>
+
+  <!-- Arrow from compile down to wiki -->
+  <line x1="310" y1="230" x2="310" y2="264" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#kb-arr)"/>
+
+  <!-- Arrow from reflect down-left to wiki (synthesis articles) -->
+  <path d="M544,231 L544,256 L490,256 L490,278" stroke="var(--accent)" stroke-width="1.4" fill="none" stroke-dasharray="5 3" marker-end="url(#kb-arr-accent)"/>
+  <text x="516" y="252" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--accent)">synthesis</text>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- ROW 5: wiki/ (central hub)                     -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <rect x="74" y="266" width="490" height="66" rx="8" fill="var(--bg)" stroke="var(--accent)" stroke-width="2"/>
+  <text x="319" y="285" text-anchor="middle" font-family="var(--font-mono, monospace)" font-size="13" font-weight="700" fill="var(--accent)">wiki/  —  LLM-managed</text>
+  <text x="319" y="305" text-anchor="middle" font-family="var(--font-sans)" font-size="11" fill="var(--text-muted)">index.md   ·   concepts/   ·   sources/   ·   archive/</text>
+  <text x="319" y="322" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">master index   ·   concept articles   ·   source summaries   ·   merged articles</text>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- ROW 6: Output skills                           -->
+  <!-- ═══════════════════════════════════════════════ -->
+
+  <!-- Arrows from wiki down to each skill -->
+  <line x1="150" y1="332" x2="150" y2="366" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#kb-arr)"/>
+  <line x1="280" y1="332" x2="280" y2="366" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#kb-arr)"/>
+  <line x1="410" y1="332" x2="410" y2="366" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#kb-arr)"/>
+  <line x1="530" y1="332" x2="530" y2="366" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#kb-arr)"/>
+
+  <!-- /kb-ask -->
+  <rect x="86" y="368" width="128" height="32" rx="7" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.8"/>
+  <text x="150" y="389" text-anchor="middle" font-family="var(--font-mono, monospace)" font-size="12" font-weight="600" fill="var(--accent)">/kb-ask</text>
+
+  <!-- /kb-lint -->
+  <rect x="216" y="368" width="128" height="32" rx="7" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.8"/>
+  <text x="280" y="389" text-anchor="middle" font-family="var(--font-mono, monospace)" font-size="12" font-weight="600" fill="var(--accent)">/kb-lint</text>
+
+  <!-- /kb-merge -->
+  <rect x="346" y="368" width="128" height="32" rx="7" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.8"/>
+  <text x="410" y="389" text-anchor="middle" font-family="var(--font-mono, monospace)" font-size="12" font-weight="600" fill="var(--accent)">/kb-merge</text>
+
+  <!-- /kb-output -->
+  <rect x="466" y="368" width="128" height="32" rx="7" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.8"/>
+  <text x="530" y="389" text-anchor="middle" font-family="var(--font-mono, monospace)" font-size="12" font-weight="600" fill="var(--accent)">/kb-output</text>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- ROW 7: Outputs                                 -->
+  <!-- ═══════════════════════════════════════════════ -->
+
+  <!-- Arrows from skills down to outputs -->
+  <line x1="150" y1="400" x2="150" y2="428" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#kb-arr)"/>
+  <line x1="280" y1="400" x2="280" y2="428" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#kb-arr)"/>
+  <line x1="410" y1="400" x2="410" y2="428" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#kb-arr)"/>
+  <line x1="530" y1="400" x2="530" y2="428" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#kb-arr)"/>
+
+  <!-- Q&A answers -->
+  <rect x="86" y="430" width="128" height="42" rx="5" fill="var(--bg-subtle)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="150" y="448" text-anchor="middle" font-family="var(--font-sans)" font-size="11" fill="var(--text)">Q&amp;A answers</text>
+  <text x="150" y="463" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">outputs/*.md</text>
+
+  <!-- Lint reports -->
+  <rect x="216" y="430" width="128" height="42" rx="5" fill="var(--bg-subtle)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="280" y="448" text-anchor="middle" font-family="var(--font-sans)" font-size="11" fill="var(--text)">health reports</text>
+  <text x="280" y="463" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">outputs/lint-*.md</text>
+
+  <!-- Archive -->
+  <rect x="346" y="430" width="128" height="42" rx="5" fill="var(--bg-subtle)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="410" y="448" text-anchor="middle" font-family="var(--font-sans)" font-size="11" fill="var(--text)">merged articles</text>
+  <text x="410" y="463" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">wiki/archive/</text>
+
+  <!-- Slides & charts -->
+  <rect x="466" y="430" width="128" height="42" rx="5" fill="var(--bg-subtle)" stroke="var(--border)" stroke-width="1.5"/>
+  <text x="530" y="448" text-anchor="middle" font-family="var(--font-sans)" font-size="11" fill="var(--text)">slides &amp; charts</text>
+  <text x="530" y="463" text-anchor="middle" font-family="var(--font-sans)" font-size="10" fill="var(--text-muted)">outputs/*.md / *.png</text>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- Filed back arrow: answers → wiki/index.md      -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <path
+    d="M86,451 L56,451 L56,299 L74,299"
+    stroke="var(--text-muted)"
+    stroke-width="1.4"
+    stroke-dasharray="5 3"
+    fill="none"
+    marker-end="url(#kb-arr)"
+  />
+  <text
+    transform="rotate(-90 42 390)"
+    x="42" y="390"
+    text-anchor="middle"
+    font-family="var(--font-sans)"
+    font-size="10"
+    fill="var(--text-muted)"
+  >filed back</text>
+
+</svg>
