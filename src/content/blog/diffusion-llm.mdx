@@ -46,7 +46,7 @@ This shifts the question from "what comes next?" to "what should this position b
 
 This post is a technical deep-dive into how diffusion language models work, written for ML practitioners who are already comfortable with transformers and autoregressive LLMs. No prior exposure to diffusion models is assumed, but we will not slow down for transformer basics.
 
-We cover two theoretical frameworks. Continuous diffusion adds Gaussian noise to token embeddings and gave rise to the foundational ideas. Masked diffusion operates directly on discrete tokens and is the dominant approach in 2025. We then walk through three concrete models — LLaDA, Dream, and Mercury — that represent the current state of the art. The post ends with a six-dimension head-to-head comparison of dLLMs and AR models. We close with an honest assessment of whether dLLMs are ready to replace AR in practice.
+We cover two theoretical frameworks. Continuous diffusion adds Gaussian noise to token embeddings and gave rise to the foundational ideas. Masked diffusion operates directly on discrete tokens and, by 2025, had become the main research focus in diffusion language modeling. We then walk through three concrete models — LLaDA, Dream, and Mercury — that represent the current state of the art. The post ends with a six-dimension head-to-head comparison of dLLMs and AR models. We close with an honest assessment of whether dLLMs are ready to replace AR in practice.
 
 By the end, you will have enough technical grounding to read the primary papers, evaluate benchmarks critically, and decide where dLLMs belong in your own work.
 
@@ -165,7 +165,7 @@ In continuous diffusion, the ELBO simplifies to noise prediction. In masked diff
 
 Masked Diffusion Language Model (MDLM; [Sahoo et al., NeurIPS 2024, arXiv:2406.07524](https://arxiv.org/abs/2406.07524)) derives the exact ELBO for masked diffusion and shows that it decomposes into a weighted sum of masked language modeling losses:
 
-$$\mathcal{L}_\text{MDLM} = \mathbb{E}_{t,\,\mathbf{x}_0,\,\mathbf{x}_t \sim q(\mathbf{x}_t|\mathbf{x}_0)}\!\left[\sum_{i=1}^{L} \mathbf{1}\!\left[x_t^{(i)} = \texttt{[MASK]}\right] \cdot \frac{\lambda(t)}{L} \cdot \log p_\theta\!\left(x_0^{(i)} \mid \mathbf{x}_t\right)\right]$$
+$$\mathcal{L}_\text{MDLM} = -\,\mathbb{E}_{t,\,\mathbf{x}_0,\,\mathbf{x}_t \sim q(\mathbf{x}_t|\mathbf{x}_0)}\!\left[\sum_{i=1}^{L} \mathbf{1}\!\left[x_t^{(i)} = \texttt{[MASK]}\right] \cdot \frac{\lambda(t)}{L} \cdot \log p_\theta\!\left(x_0^{(i)} \mid \mathbf{x}_t\right)\right]$$
 
 Here $L$ is the sequence length, the indicator $\mathbf{1}[\cdot]$ selects masked positions, and $\lambda(t)$ is a weighting function derived from the masking schedule. Specifically, $\lambda(t) \propto -\dfrac{d\bar{\alpha}_t/dt}{1 - \bar{\alpha}_t}$, which upweights timesteps where a large fraction of tokens are already masked.
 
@@ -227,7 +227,7 @@ The two paradigms share the same high-level structure — forward corruption, EL
 <ContinuousVsMasked />
 *Figure 6: The two noise mechanisms side by side. Continuous diffusion adds Gaussian noise to token embeddings — requiring a rounding step back to discrete tokens at inference. Masked diffusion replaces tokens with [MASK] natively, avoiding the geometry mismatch entirely.*
 
-By 2025, masked diffusion has become the dominant approach for language. The reasons are practical. Training is simpler: the MDLM objective is well-founded and reduces to a familiar MLM loss. Inference is faster: $T \in \{32, 128\}$ steps replaces hundreds or thousands. Tokens are native: no rounding step, no embedding geometry mismatch. And the ELBO is tractable in closed form, giving clean theoretical grounding. Continuous diffusion remains valuable for multimodal settings where real-valued representations are natural. For text, the discrete transition matrix approach wins on almost every dimension that matters.
+By 2025, masked diffusion had become the center of gravity for diffusion-language-model research. The reasons are practical. Training is simpler: the MDLM objective is well-founded and reduces to a familiar MLM loss. Inference is faster: $T \in \{32, 128\}$ steps replaces hundreds or thousands. Tokens are native: no rounding step, no embedding geometry mismatch. And the ELBO is tractable in closed form, giving clean theoretical grounding. Continuous diffusion remains valuable for multimodal settings where real-valued representations are natural. For text, the discrete transition matrix approach currently looks stronger on most of the dimensions practitioners care about.
 
 ## Key Models: From Research to Production
 
@@ -240,13 +240,13 @@ LLaDA ([Nie et al., 2025, arXiv:2502.09992](https://arxiv.org/abs/2502.09992)) a
 
 Before LLaDA, it was unknown whether masked diffusion would benefit from more parameters and more data the way AR models do. Scaling laws for AR transformers are well-characterized. For masked diffusion, no one had trained a model large enough to find out.
 
-LLaDA's answer was yes. The authors trained an 8B-parameter masked diffusion model from scratch, comparable in scale to LLaMA-3 8B. It showed competitive performance on GSM8K, MATH, and commonsense reasoning benchmarks. Older dLLMs had never approached this range. LLaDA closed that gap.
+LLaDA's answer was yes. The authors trained an 8B-parameter masked diffusion model from scratch, comparable in scale to LLaMA-3 8B. The paper reports strong scalability across broad benchmarks and says LLaDA 8B is competitive with LLaMA3 8B in in-context learning. Older dLLMs had not been demonstrated at this scale. LLaDA materially narrowed that gap.
 
 **The remasking strategy.** The key inference contribution is a remasking trick. In standard iterative unmasking, once a token is predicted and placed, it is frozen. If the model was confidently wrong early in the process, that token stays wrong and corrupts downstream predictions. LLaDA introduces a correction mechanism. At each step, after predicting all masked positions, the lowest-confidence predicted tokens are re-masked rather than finalized.
 
 This gives the model a second chance. A wrong token does not lock in; it becomes a masked position again and can be re-predicted in a later step with more context. The cost is a modest increase in the number of unmasking operations. The benefit is that early commitment errors do not cascade.
 
-The empirical result: LLaDA-8B is competitive with LLaMA-3-8B across reasoning benchmarks, establishing that masked diffusion is not inherently weaker — it had simply not been trained at the right scale.
+The empirical result: LLaDA-8B is competitive with LLaMA-3-8B in the paper's reported in-context-learning setting, establishing that masked diffusion is not obviously doomed by architecture alone — it had also not been explored seriously enough at scale.
 
 ---
 
@@ -254,11 +254,11 @@ The empirical result: LLaDA-8B is competitive with LLaMA-3-8B across reasoning b
 
 Dream 7B ([Ye et al., 2025, arXiv:2508.15487](https://arxiv.org/abs/2508.15487)) introduced two techniques that make training masked diffusion LLMs more practical.
 
-**AR-model initialization.** Training an 8B masked diffusion model from scratch is expensive. Dream sidesteps part of that cost by starting from a pretrained AR LLM — for example, Mistral or LLaMA — and fine-tuning it to function as a denoiser. The intuition: AR models have already learned rich token-level representations across a large corpus. Those representations are useful regardless of whether generation proceeds left-to-right or via iterative unmasking. Initializing from a pretrained AR model dramatically reduces the compute needed to reach good perplexity. The analogy is BERT-style initialization for fine-tuning tasks: the representation quality transfers even when the objective changes.
+**AR-model initialization.** Training a large masked diffusion model from scratch is expensive. Dream addresses part of that cost by starting from a pretrained AR LLM and adapting it to function as a denoiser. The intuition: AR models have already learned rich token-level representations across a large corpus. Those representations are useful regardless of whether generation proceeds left-to-right or via iterative unmasking. The paper presents this as a simple, effective way to improve diffusion-LM training.
 
 **Context-adaptive token-level noise rescheduling.** Standard masked diffusion applies the same masking probability to every position in the sequence at a given timestep $t$. Dream adapts this per token based on local context. Tokens that are already tightly constrained by surrounding context receive lower masking probability — they are easy to predict, so spending training capacity on them is wasteful. Tokens in ambiguous positions, where the context provides little constraint, receive higher masking probability — they are where the model needs to learn most. This focuses training signal on the positions that are hardest to predict.
 
-Together, these two contributions make Dream comparable in quality to training from scratch, at significantly lower compute.
+Together, these two contributions make Dream a stronger and more practical diffusion-LM recipe than earlier straightforward training setups.
 
 ---
 
@@ -278,9 +278,9 @@ One caveat: Plaid is a continuous diffusion model. It operates in embedding spac
 
 ### 4.4 Mercury — Production Deployment
 
-Mercury ([Khanna et al., Inception Labs, 2025, arXiv:2506.17298](https://arxiv.org/abs/2506.17298)) is the first commercially deployed dLLM. Before Mercury, dLLMs were research artifacts. Mercury demonstrated production viability.
+Mercury ([Khanna et al., Inception Labs, 2025, arXiv:2506.17298](https://arxiv.org/abs/2506.17298)) is the clearest 2025 example of a commercial-scale diffusion LLM. Before Mercury, most dLLM discussion was concentrated in research papers. Mercury made the commercial case concrete.
 
-**What it demonstrates.** Mercury Coder Mini achieves 1,109 tokens/sec on H100. Inception Labs reports this as "up to 10x faster than speed-optimized frontier models." Benchmarks against GPT-4o Mini and Claude 3.5 Haiku show 18–19x throughput advantage in raw tokens per second.
+**What it demonstrates.** Mercury Coder Mini achieves 1,109 tokens/sec on H100. The paper says Mercury Coder Mini and Small achieve state-of-the-art throughput on H100s and outperform speed-optimized frontier models by up to 10x on average while maintaining comparable quality.
 
 These numbers are self-reported. The evaluation methodology, model architecture details, and training data composition are not public. Treat the speed numbers as directionally correct, not as independently verified benchmarks.
 
@@ -288,7 +288,7 @@ These numbers are self-reported. The evaluation methodology, model architecture 
 
 **What is not public.** Model architecture (whether it is a masked diffusion model or a continuous variant, and how it handles conditioning). Training data composition and scale. Exact benchmark setup, including whether throughput was measured under identical hardware and batching conditions. These gaps are typical for a commercial release but matter when comparing against academic baselines.
 
-**Significance.** Mercury moved dLLMs from "this might work at scale" to "this works in production, at commercial speed." The benchmark debate will continue; the deployment milestone is not in doubt.
+**Significance.** Mercury moved dLLMs from "this might work at scale" to a much stronger commercial plausibility claim. The benchmark debate will continue, but Mercury made it harder to dismiss diffusion LLMs as purely academic prototypes.
 
 ---
 
@@ -300,7 +300,7 @@ The concentration of dLLM papers in early 2026 is a signal. The core theory is s
 
 **LogicDiff** ([Aman, 2026, arXiv:2603.26771](https://arxiv.org/abs/2603.26771)) injects logical constraints into the denoising process, improving performance on formal reasoning benchmarks. It is an early attempt to give dLLMs a chain-of-thought equivalent — structured intermediate reasoning rather than direct answer generation.
 
-**AR vs. MDM controlled comparison** ([Vicentino, 2026, arXiv:2603.22075](https://arxiv.org/abs/2603.22075)) is the first rigorous head-to-head comparison of autoregressive and masked diffusion LMs with matched model size, training data, and compute. Most prior comparisons did not control all three simultaneously. This work is essential for evaluating quality claims that ignore these controls.
+**AR vs. MDM controlled comparison** ([Vicentino, 2026, arXiv:2603.22075](https://arxiv.org/abs/2603.22075)) is a useful controlled head-to-head comparison of autoregressive and masked diffusion LMs with matched model size, training data, and compute in a small-scale TinyStories setting. Most prior comparisons did not control all three simultaneously. This work is useful for evaluating quality claims that ignore these controls, but its conclusions should be interpreted within its experimental scale.
 
 **EntropyCache** ([Cheong et al., 2026, arXiv:2603.18489](https://arxiv.org/abs/2603.18489)) adapts key-value (KV) caching to dLLMs. At each denoising step, it measures token entropy: positions where the model is already confident (low entropy) skip KV recomputation. High-entropy positions — where the model is still uncertain — are recomputed fully. This reduces per-step cost without changing the model or training procedure.
 
@@ -315,9 +315,9 @@ Benchmarks in this space are moving fast. Numbers that look definitive today may
 
 ### Dimension 1: Generation Quality
 
-AR models still lead on most standard benchmarks — perplexity on held-out text, MMLU, HumanEval — at matched parameter counts. That lead has narrowed substantially since 2023. LLaDA-8B ([Nie et al., 2025, arXiv:2502.09992](https://arxiv.org/abs/2502.09992)) is competitive with LLaMA-3-8B on several reasoning tasks at the same scale. "Competitive" is not "equal" — but it is no longer the 1000x compute gap from early continuous diffusion work.
+AR models still lead on most standard benchmarks — perplexity on held-out text, MMLU, HumanEval — at matched parameter counts. That lead has narrowed substantially since 2023. LLaDA-8B ([Nie et al., 2025, arXiv:2502.09992](https://arxiv.org/abs/2502.09992)) is reported as competitive with LLaMA-3-8B in in-context learning at the same scale. "Competitive" is not "equal" — but it is no longer the 1000x compute gap from early continuous diffusion work.
 
-Before reading any quality comparison, check what was controlled. Model size, training data volume, and compute budget all affect benchmark scores. Most earlier comparisons did not control all three at once. Vicentino (2026), [arXiv:2603.22075](https://arxiv.org/abs/2603.22075), is currently the most rigorous controlled comparison — matched model size, training data, and compute. Use it as the baseline, not earlier uncontrolled results.
+Before reading any quality comparison, check what was controlled. Model size, training data volume, and compute budget all affect benchmark scores. Most earlier comparisons did not control all three at once. Vicentino (2026), [arXiv:2603.22075](https://arxiv.org/abs/2603.22075), is a particularly useful controlled comparison because it matches model size, training data, and compute. It should be treated as one careful reference point, not as the final word for larger-scale regimes.
 
 One measurement note: perplexity is not directly comparable between AR and dLLM. AR perplexity measures the probability of a sequence under a chain of next-token conditionals. Masked diffusion perplexity measures reconstruction probability under a different probabilistic model. They are computing different quantities. Downstream task accuracy on shared benchmarks — GSM8K, MMLU, HumanEval — is the fair metric.
 
@@ -455,7 +455,7 @@ No endorsement of any future. Current evidence is consistent with all three.
 **What to watch.**
 
 - Scaling studies for masked diffusion at multiple compute budgets.
-- Reasoning benchmark results that control for model size and training compute. Vicentino (2026, [arXiv:2603.22075](https://arxiv.org/abs/2603.22075)) provides the evaluation template.
+- Reasoning benchmark results that control for model size and training compute. Vicentino (2026, [arXiv:2603.22075](https://arxiv.org/abs/2603.22075)) is a useful example of that style of evaluation.
 - Papers placing AR and dLLM head-to-head with matched training budgets, reporting downstream task accuracy rather than perplexity.
 
 **What to try.**
