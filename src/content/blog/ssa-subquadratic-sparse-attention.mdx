@@ -1,0 +1,327 @@
+---
+title: "From Quadratic to Linear: A Survey of Subquadratic Sparse Attention"
+description: "Why standard attention breaks at 128K tokens, how four families of efficient attention tried and partially failed to fix it, and how content-dependent sparse routing achieves linear scaling without sacrificing retrieval accuracy."
+date: 2026-05-15
+tags: ["transformers", "attention", "sparse attention", "long context", "LLM", "retrieval", "SSA", "efficient attention"]
+---
+
+import AttentionPatternGrid from '../../components/diagrams/AttentionPatternGrid.astro';
+import ComplexityCurves from '../../components/diagrams/ComplexityCurves.astro';
+import SSARoutingDiagram from '../../components/diagrams/SSARoutingDiagram.astro';
+import BenchmarkComparison from '../../components/diagrams/BenchmarkComparison.astro';
+
+## 1. The Quadratic Wall
+
+The attention mechanism that powers every modern large language model scales quadratically with sequence length. For a sequence of $n$ tokens, computing attention requires forming an $n \times n$ matrix of token-to-token similarity scores. Every token looks at every other token.
+
+The cost is concrete. Scaled dot-product attention computes:
+
+$$\text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V$$
+
+The term $QK^\top$ produces an $n \times n$ matrix. At $n = 128{,}000$ tokens in FP16, that matrix occupies roughly 32 GB per attention head. At $n = 1{,}000{,}000$ tokens, it reaches 2 TB per head. No GPU holds that.
+
+The compute cost scales the same way. For a model with $d_{\text{model}} = 4{,}096$ dimensions, one attention layer at 128K tokens requires approximately:
+
+$$2 \times n^2 \times d_{\text{model}} = 2 \times (128{,}000)^2 \times 4{,}096 \approx 1.3 \times 10^{14}\ \text{FLOPs}$$
+
+That is 130 trillion operations — per layer, per forward pass. This is not an engineering gap that better hardware eliminates. The quadratic dependence is inherent to $QK^\top$. To serve 1M-token contexts in practice, the algorithm must change.
+
+This post surveys the four families of approaches the field has used to attack this problem, examines where each one falls short for long-text retrieval and reasoning workloads, and analyzes how Subquadratic Selective Attention (SSA) closes the remaining gap.
+
+## 2. Baseline: Scaled Dot-Product Attention
+
+**Scaled dot-product attention** takes three matrices — queries $Q \in \mathbb{R}^{n \times d_k}$, keys $K \in \mathbb{R}^{n \times d_k}$, and values $V \in \mathbb{R}^{n \times d_v}$ — and produces a weighted sum of values:
+
+$$\text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V$$
+
+The $\sqrt{d_k}$ scaling prevents dot products from becoming large as $d_k$ increases, which would saturate softmax gradients.
+
+**Multi-head attention (MHA)** runs $H$ independent attention computations in parallel, each in a lower-dimensional subspace:
+
+$$\text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_H)\, W^O$$
+$$\text{head}_i = \text{Attention}(QW^Q_i,\; KW^K_i,\; VW^V_i)$$
+
+where $W^Q_i, W^K_i \in \mathbb{R}^{d_{\text{model}} \times d_k}$ and $d_k = d_{\text{model}} / H$.
+
+### Complexity
+
+Computing $QK^\top$ produces an $n \times n$ matrix. Time complexity is $\mathcal{O}(n^2 d)$; space to store this matrix is $\mathcal{O}(n^2)$. This quadratic dependence is the root cause of every problem in the sections that follow.
+
+## 3. Family 1 — Fixed-Pattern Sparse Attention
+
+The first family of fixes restricts each token to a predetermined subset of positions, cutting the $n^2$ computation down to $n \times b$ for some fixed budget $b$.
+
+<AttentionPatternGrid />
+*Figure 1: Attention patterns for four mechanisms. Full attention computes all $n^2$ pairs. Longformer uses a local window plus a global token (orange). BigBird adds random attention to local and global. SSA (purple) selects positions by query content, not position.*
+
+### Sparse Transformer (Child et al., 2019)
+
+Child et al. (arXiv:1904.10509) introduced two factored patterns for autoregressive models: **strided** (attend to every $\ell$-th token) and **fixed** (local window plus fixed global positions). For block size $\ell$, each token attends to $\mathcal{O}(\ell)$ others, reducing total complexity to $\mathcal{O}(n\ell)$.
+
+### Longformer (Beltagy, Peters, and Cohan, 2020)
+
+Longformer (arXiv:2004.05150) combines two patterns:
+
+1. **Sliding window:** Each token attends to its $w/2$ left and right neighbors. Complexity: $\mathcal{O}(n \cdot w)$.
+2. **Global attention:** Designated tokens (e.g., `[CLS]`, task prompts) attend to all positions bidirectionally. Complexity: $\mathcal{O}(n \cdot g)$ for $g$ global tokens.
+
+Combined complexity: $\mathcal{O}(n(w + g))$ — linear for fixed $w$ and $g$.
+
+Global tokens bridge information across the document. Longformer achieves strong results on long-document QA and classification by placing global tokens at question positions.
+
+### BigBird (Zaheer et al., NeurIPS 2020)
+
+BigBird (arXiv:2007.14062) extends Longformer with a third component: **random attention**. Each token attends to $r$ uniformly sampled keys in addition to local window and global tokens:
+
+$$\text{Attn}_{\text{BB}}(i) = \text{Window}(w) \cup \text{Global}(g) \cup \text{Random}(r)$$
+
+Combined complexity: $\mathcal{O}(n(w + g + r))$ — linear for fixed budgets.
+
+BigBird proves theoretically that this combination is a **universal approximator of sequence-to-sequence functions** and is **Turing complete** — the same expressive power as full attention in theory.
+
+### The Limitation
+
+Fixed-pattern attention routes by position, not content. A sliding window cannot retrieve a fact 800K tokens away. No fixed global token set can dynamically identify which positions are relevant for a given query. These methods work well when task structure aligns with the pattern. For open-domain retrieval across a million-token context, no fixed pattern captures the right structure.
+
+## 4. Family 2 — Learned Sparse Attention
+
+The second family makes the routing decision input-dependent. Positions are selected based on learned functions of the content — not of the position.
+
+### HiP Attention (Lee et al., ICLR 2025)
+
+HiP Attention (arXiv:2406.09827) exploits **attention locality**: in pretrained LLMs, nearby tokens tend to have similar attention scores. HiP uses a tree-search algorithm that evaluates block-level representatives hierarchically, pruning low-scoring blocks and narrowing the search toward high-attention regions. The guarantee is that selected top-$k$ keys outperform any random pruning strategy.
+
+Complexity: $\mathcal{O}(n \log n)$ time, $\mathcal{O}(n)$ space. HiP is **training-free** — it applies to pretrained LLMs without fine-tuning. On LongBench, it retains 96% of baseline performance with a 16.5× attention speedup at 32K context.
+
+### SeerAttention (Gao et al., 2024)
+
+SeerAttention (arXiv:2410.13276) adds a lightweight trainable gate inspired by Mixture of Experts (MoE). The gate processes pooled $Q$ and $K$ representations through a small linear layer to produce a block-level mask $\hat{M}$:
+
+$$\hat{M} = \sigma\!\left(f(Q_{\text{pool}},\ K_{\text{pool}})\right)$$
+
+Blocks with low predicted attention mass are skipped. Training only the gate via self-distillation is lightweight and fast. Combined with a block-sparse FlashAttention kernel, SeerAttention achieves a 7.3× speedup at 128K context with 90% sparsity. A follow-up variant, SeerAttention-R (2025), targets long reasoning chains.
+
+### The Limitation
+
+HiP's $\mathcal{O}(n \log n)$ complexity still grows superlinearly — a real cost at 1M-token scales. SeerAttention's gate generalizes well within the training distribution but may miss semantically relevant positions for novel query types. Both methods route based on learned representations, which means routing quality is bounded by training signal quality.
+
+## 5. Family 3 — Linear Attention Approximations
+
+The third family eliminates the $n \times n$ matrix algebraically. If the softmax kernel can be approximated by a decomposable function, the $QK^\top$ computation can be rewritten to avoid the quadratic bottleneck.
+
+### Linformer (Wang et al., 2020)
+
+Linformer (arXiv:2006.04768) projects keys and values to a fixed low rank $k$ via learned matrices $E, F \in \mathbb{R}^{n \times k}$:
+
+$$\text{Attn}_{\text{LF}} = \text{softmax}\!\left(\frac{Q(EK)^\top}{\sqrt{d_k}}\right)(FV)$$
+
+With $EK \in \mathbb{R}^{k \times d_k}$ and $FV \in \mathbb{R}^{k \times d_v}$, complexity falls to $\mathcal{O}(nk)$ — linear for constant $k$.
+
+The tradeoff: the low-rank projection compresses all $n$ keys into a $k$-dimensional subspace. As $n$ grows, more information is compressed into the same capacity. Exact token-level retrieval is not guaranteed; error grows with context length.
+
+### Performer / FAVOR+ (Choromanski et al., ICLR 2021)
+
+Performer (arXiv:2009.14794) approximates the softmax kernel using random features. A feature map $\phi: \mathbb{R}^d \to \mathbb{R}^r$ satisfies:
+
+$$\exp(q \cdot k / \sqrt{d}) \approx \mathbb{E}\bigl[\phi(q)^\top \phi(k)\bigr]$$
+
+This decomposition allows the computation to be reordered:
+
+$$\text{Attn}(Q, K, V) \approx \Phi(Q) \underbrace{(\Phi(K)^\top V)}_{\mathcal{O}(r \cdot d),\ \text{compute first}}$$
+
+Compute $\Phi(K)^\top V \in \mathbb{R}^{r \times d_v}$ once, then multiply by $\Phi(Q) \in \mathbb{R}^{n \times r}$. Total complexity: $\mathcal{O}(nrd)$ — linear for fixed $r$. Performer provides provably unbiased estimators with finite-sample concentration guarantees.
+
+### The Limitation
+
+Both methods sacrifice exactness. Approximation error is small on average but can be arbitrarily large for specific token pairs. On needle-in-a-haystack evaluations — where a model must retrieve a specific fact from a long context — these approximations fail at the task that matters most.
+
+<ComplexityCurves />
+*Figure 2: Compute cost (log₂ scale, normalized to the 4K-token baseline) as a function of sequence length. $\mathcal{O}(n^2)$ reaches $2^{16}$ (65,536×) above baseline at 1M tokens. $\mathcal{O}(n)$ grows by only $2^8$ (256×) — two orders of magnitude less.*
+
+## 6. Family 4 — State Space Models
+
+The fourth family abandons attention entirely, replacing it with a recurrent formulation that processes sequences in linear time.
+
+### Structured State Spaces — S4 (Gu et al., ICLR 2022)
+
+S4 (arXiv:2111.00396, ICLR 2022 Outstanding Paper Honorable Mention) models sequences as linear dynamical systems. A hidden state $h_t \in \mathbb{R}^N$ evolves via learned matrices:
+
+$$h_t = \bar{A}\, h_{t-1} + \bar{B}\, x_t, \qquad y_t = C\, h_t$$
+
+With structured (diagonal-plus-low-rank) $\bar{A}$, the recurrence computes as a convolution via fast Fourier transforms in $\mathcal{O}(n \log n)$ during training and in $\mathcal{O}(1)$ per step during inference.
+
+### Mamba (Gu and Dao, 2023)
+
+Mamba (arXiv:2312.00752) introduces **selective state spaces**: the transition matrices $\bar{A}$, $\bar{B}$, $C$ become functions of the input $x_t$, enabling content-dependent state updates:
+
+$$\Delta_t,\, B_t,\, C_t = f(x_t)$$
+
+The model learns to selectively retain or discard information based on content. Training via parallel scan achieves $\mathcal{O}(n)$; inference is $\mathcal{O}(1)$ per step. Mamba matches or exceeds Transformer perplexity on many language modeling benchmarks at the same parameter count.
+
+### The Limitation
+
+SSMs carry a fundamental capacity constraint: the hidden state $h \in \mathbb{R}^N$ has fixed dimension regardless of sequence length. After processing 1 million tokens, all signal from those tokens must fit into the same fixed-size vector. Any fact that was "overwritten" by subsequent state updates is unrecoverable.
+
+For tasks requiring exact recall of a specific fact from 500K tokens ago — multi-needle retrieval, multi-hop question answering over book-length contexts — SSMs degrade substantially. The compression ratio is simply too high.
+
+## 7. The Retrieval Gap
+
+Long-text retrieval and reasoning are the hardest test cases for all four prior families.
+
+**Retrieval tasks** require exact recall: find a specific token, value, or span from anywhere in the context. Any approximation — in routing, in kernel estimation, in state compression — introduces a nonzero failure probability per retrieved fact. With $k$ facts to retrieve, the probability of perfect recall is $(1 - \epsilon)^k$, where $\epsilon$ is the per-fact error rate. Even small $\epsilon$ compounds badly at $k = 8$.
+
+**Reasoning tasks** require multi-hop integration: connecting non-adjacent evidence pieces. If a model cannot attend to arbitrary positions, it cannot complete reasoning chains that depend on evidence scattered across the context.
+
+| Family | Linear compute? | Exact attention? | Arbitrary positions? | Content-routing? |
+|---|---|---|---|---|
+| Full attention | ✗ $\mathcal{O}(n^2)$ | ✓ | ✓ | — |
+| Fixed-pattern sparse | ✓ $\mathcal{O}(n \cdot b)$ | ✓ (selected) | ✗ position-bound | ✗ |
+| Learned sparse | Near ✓ $\mathcal{O}(n \log n)$ | ✓ (selected) | Partial | Partial |
+| Linear approx | ✓ $\mathcal{O}(n)$ | ✗ approximate | ✓ approx | ✗ |
+| SSMs | ✓ $\mathcal{O}(n)$ | N/A | ✗ compressed | Partial |
+| **SSA** | **✓ $\mathcal{O}(n \cdot k)$** | **✓ exact** | **✓** | **✓** |
+
+The combination that SSA targets — linear compute, exact attention, arbitrary positions, content-dependent routing — is the one that none of the prior families satisfy simultaneously.
+
+## 8. SSA — Subquadratic Selective Attention
+
+<SSARoutingDiagram />
+*Figure 3: SSA routing. A learned content router scores all $n$ keys against the query representation and selects $k$ positions. Exact softmax attention runs over those $k$ positions only. Selected positions can be anywhere in the sequence — near or far.*
+
+### The Core Insight
+
+For most queries, most key-value pairs contribute negligibly to the output. The relevant information in a million-token context is concentrated in a small fraction of positions. The design challenge is identifying that fraction without paying $\mathcal{O}(n)$ per query to score every candidate one by one.
+
+SSA's answer is **content-dependent routing**: a lightweight router takes a query representation and produces a mask of $k$ positions predicted to have high attention weight. Exact softmax attention runs over those $k$ positions. The router operates in $\mathcal{O}(n)$ total; the per-query attention cost is $\mathcal{O}(k \cdot d)$.
+
+### Three Required Properties
+
+Subquadratic identifies three properties that a viable solution must satisfy simultaneously:
+
+1. **Linear compute and memory**: the system scales $\mathcal{O}(n)$ with context length.
+2. **Content-dependent routing**: position selection is a function of query *meaning*, not query *position*.
+3. **Exact sparse attention**: attention over selected positions uses full softmax — no kernel approximation. (Note: "exact" refers to the attention computation, not to a guarantee that the router finds the globally optimal $k$ positions.)
+
+Properties 1 and 3 together rule out linear approximations (inexact) and SSMs (fixed-capacity compression). Property 2 rules out fixed-pattern sparse attention (position-bound).
+
+### Complexity Analysis
+
+For sequence length $n$ and per-query budget $k$:
+
+- **Router cost:** $\mathcal{O}(n)$ (implemented via a learned sketch or hierarchical structure, not naive per-query scoring).
+- **Attention cost:** $\mathcal{O}(k \cdot d)$ per query, $\mathcal{O}(nkd)$ total.
+- **End-to-end:** $\mathcal{O}(n)$ for constant $k$.
+
+The FLOP reduction relative to full attention is:
+
+$$\frac{\text{Full attention FLOPs}}{\text{SSA FLOPs}} = \frac{\mathcal{O}(n^2 d)}{\mathcal{O}(nkd)} = \frac{n}{k}$$
+
+Third-party benchmarking by Appen confirms near-linear scaling empirically:
+
+| Context | FLOP reduction | Effective $k$ |
+|---|---|---|
+| 128K | 8× | ≈ 16,000 |
+| 1M | 62.5× | ≈ 16,000 |
+
+The effective $k$ stays approximately constant as $n$ grows from 128K to 1M — confirming $\mathcal{O}(n)$ scaling.
+
+### Comparison to DeepSeek NSA
+
+DeepSeek's Native Sparse Attention (NSA) is a related approach that also performs block-level key selection. The key difference is in the indexer:
+
+- **NSA:** Block-level scores are computed as $\mathcal{O}((n/b)^2)$ for block size $b$ — subquadratic, not linear.
+- **SSA:** The router runs in $\mathcal{O}(n)$ end-to-end.
+
+At $n = 1{,}000{,}000$ with $b = 64$: NSA's indexer involves $(1{,}000{,}000 / 64)^2 \approx 2.4 \times 10^8$ operations. SSA's router is $\mathcal{O}(1{,}000{,}000)$ — two orders of magnitude lower.
+
+## 9. Benchmarks
+
+### RULER @ 128K
+
+RULER tests retrieval, tracking, and aggregation at a specified context length using synthetic tasks. SubQ achieves 95.6% overall — matching or exceeding frontier models:
+
+| Model | RULER @ 128K |
+|---|---|
+| SubQ | **95.6%** |
+| Claude Opus 4.6 | 94.8% |
+
+Single-needle retrieval shows 100% accuracy, confirming that SSA's exact-attention design introduces no retrieval failures on individual facts. Multi-key retrieval degrades predictably at 8 keys (68%), consistent with compound error at higher needle counts.
+
+### MRCR v2 @ 1M Tokens
+
+The Multi-Round Context Recall benchmark (MRCR v2) tests multi-needle retrieval at 1M tokens. The hardest tier requires locating and integrating 8 independent needles from a million-token context.
+
+<BenchmarkComparison />
+*Figure 4: MRCR v2 (1M tokens, 8-needle) and SWE-Bench Verified. SubQ's MRCR advantage over frontier models is large. SWE-Bench scores cluster near 81% for all models.*
+
+| Model | MRCR v2 (8-needle, 1M) | SWE-Bench Verified |
+|---|---|---|
+| SubQ | **86.2%** | **81.8%** |
+| Claude Opus 4.6 | 78.3% | 80.8% |
+| GPT-5.5 | 74.0% | ~80% |
+| Gemini 3.1 Pro | 26.3% | 80.6% |
+
+Two results stand out. First, Gemini 3.1 Pro scores 26.3% at 1M tokens — demonstrating that a large nominal context window does not guarantee functional retrieval capability at that length. Second, SubQ's error pattern is all-or-nothing: the model either retrieves all 8 needles or fails entirely. This is consistent with a hard threshold in the router — if all 8 needles fall within the routing budget, the model succeeds; if any needle falls outside it, the chain fails.
+
+### Throughput
+
+Independent Appen benchmarking confirms near-linear wall-clock scaling:
+
+| Context | SSA latency | FlashAttention-2 latency | Speedup |
+|---|---|---|---|
+| 128K | — | — | 7.2× |
+| 256K | — | — | 13.2× |
+| 512K | — | — | 23.0× |
+| 1M | 381 ms | 21.4 s | 52.2× |
+
+Doubling context from 128K→256K multiplies SSA latency by ≈1.83× (vs 4× for $\mathcal{O}(n^2)$), and from 256K→512K by ≈1.74× — close to linear throughout.
+
+## 10. Open Problems
+
+**Training instability.** A concurrent arxiv paper, "SSA: Sparse Sparse Attention by Aligning Full and Sparse Attention Outputs in Feature Space" (Shen et al., arXiv:2511.20102), identifies two training pathologies common to sparse attention. The *attention gap* is the distribution mismatch between full-attention training and sparse-attention inference. The *capability gap* is incomplete gradient flow through the sparse mask. The paper proposes bidirectional alignment between sparse and full attention outputs as a training fix — showing that naive sparse training underperforms even when inference-time sparsity is optimal.
+
+**Hardware-efficient routing kernels.** The gap between SSA's theoretical FLOP reduction (62.5× at 1M) and observed wall-clock speedup (52×) reflects routing kernel overhead. The router must run efficiently on modern GPU memory hierarchies; as memory bandwidth profiles change across GPU generations, the kernel requires hardware-specific tuning.
+
+**Hybrid architectures.** SSA's content-routing excels at retrieval. SSMs' recurrent structure handles tasks that require continuous long-range context integration (e.g., maintaining narrative coherence across a novel). A hybrid architecture combining SSA layers for retrieval with SSM layers for compression is an unexplored design space.
+
+**Evaluation gaps.** RULER and MRCR are retrieval benchmarks — they test whether a model can *find* specific information. No widely-adopted benchmark tests multi-hop *reasoning* over 1M+ tokens where the answer requires synthesizing evidence that cannot be retrieved in isolation. Developing such benchmarks is a prerequisite for validating next-generation long-context models.
+
+**Training data.** Long-context capability requires long-context training data. Most pretraining corpora contain documents well below 128K tokens. Curating or generating training data at the 1M-token scale with sufficient diversity remains an open problem.
+
+## So What?
+
+Standard attention cannot scale to 1M tokens. Of the four prior solution families — fixed patterns, learned sparsity, linear approximations, and state space models — each satisfies one or two of the three required properties (linear compute, exact attention, content-dependent routing), but not all three.
+
+SSA is the first mechanism to satisfy all three simultaneously, and its benchmarks at 1M tokens (95.6% RULER, 86.2% MRCR 8-needle, verified by a third party) are not just theoretical claims. The all-or-nothing failure mode is an important caveat: SSA does not degrade gracefully under routing budget pressure. If the budget is insufficient to cover all relevant positions, retrieval fails entirely.
+
+For practitioners building retrieval-augmented systems, multi-document synthesis pipelines, or any application where context length is the binding constraint: the linear-scaling architecture class that SSA represents is worth tracking closely. The efficiency claims are verified. The training challenges at this scale are real but not yet fully solved.
+
+## References
+
+1. Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, L., & Polosukhin, I. (2017). Attention is all you need. *arXiv:1706.03762*.
+
+2. Child, R., Gray, S., Radford, A., & Sutskever, I. (2019). Generating long sequences with sparse transformers. *arXiv:1904.10509*.
+
+3. Beltagy, I., Peters, M. E., & Cohan, A. (2020). Longformer: The long-document transformer. *arXiv:2004.05150*.
+
+4. Zaheer, M., Guruganesh, G., Dubey, A., Ainslie, J., Alberti, C., Ontanon, S., Pham, P., Ravula, A., Wang, Q., Yang, L., & Ahmed, A. (2020). Big Bird: Transformers for longer sequences. *NeurIPS 2020*. arXiv:2007.14062.
+
+5. Wang, S., Li, B. Z., Khabsa, M., Fang, H., & Ma, H. (2020). Linformer: Self-attention with linear complexity. *arXiv:2006.04768*.
+
+6. Choromanski, K., Likhosherstov, V., Dohan, D., Song, X., Gane, A., Sarlos, T., Hawkins, P., Davis, J., Mohiuddin, A., Kaiser, L., Belanger, D., Colwell, L., & Weller, A. (2021). Rethinking attention with Performers. *ICLR 2021*. arXiv:2009.14794.
+
+7. Gu, A., Goel, K., & Ré, C. (2022). Efficiently modeling long sequences with structured state spaces. *ICLR 2022* (Outstanding Paper Honorable Mention). arXiv:2111.00396.
+
+8. Gu, A., & Dao, T. (2023). Mamba: Linear-time sequence modeling with selective state spaces. *arXiv:2312.00752*.
+
+9. Lee, H., Park, G., Lee, Y., Suh, J., Kim, J., Jeong, W., Kim, B., Lee, H., Jeon, M., & Hwang, S. J. (2025). HiP Attention: Sparse sub-quadratic attention with hierarchical attention pruning. *ICLR 2025*. arXiv:2406.09827.
+
+10. Gao, Y., Zeng, Z., Du, D., Cao, S., Zhou, P., Qi, J., Lai, J., So, H. K.-H., Cao, T., Yang, F., & Yang, M. (2024). SeerAttention: Learning intrinsic sparse attention in your LLMs. *arXiv:2410.13276*.
+
+11. Shen, Z., Lu, J., Gui, L., Li, J., He, Y., Yin, D., & Sun, X. (2025). SSA: Sparse sparse attention by aligning full and sparse attention outputs in feature space. *arXiv:2511.20102*.
+
+12. Subquadratic. (2025). Introducing SubQ: The first fully subquadratic LLM. https://subq.ai/introducing-subq
+
+13. Subquadratic. (2025). How SSA makes long context practical. https://subq.ai/how-ssa-makes-long-context-practical
+
+14. Appen. (2025). Benchmarking Subquadratic's latest model & SSA kernel. https://www.appen.com/whitepapers/benchmarking-subquadratics-latest-model-ssa-kernel
