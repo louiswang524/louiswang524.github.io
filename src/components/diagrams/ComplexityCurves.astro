@@ -1,0 +1,114 @@
+---
+const W = 580, H = 290;
+const CHART_X0 = 68, CHART_X1 = 460;
+const CHART_Y0 = 30, CHART_Y1 = 230;
+const CW = CHART_X1 - CHART_X0; // 392
+const CH = CHART_Y1 - CHART_Y0; // 200
+const LOG_MAX = 16; // y-axis: log₂ scale 0..16 (1× to 65536×)
+
+const SEQ = [4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000, 1000000];
+const LABELS = ['4K', '8K', '16K', '32K', '64K', '128K', '256K', '512K', '1M'];
+const BASE = SEQ[0];
+
+// x position for each sequence length (evenly spaced)
+const xs = SEQ.map((_, k) => CHART_X0 + k * (CW / (SEQ.length - 1)));
+
+// y from log₂ value
+function yFromLog2(v: number): number {
+  return CHART_Y1 - Math.min(v, LOG_MAX) / LOG_MAX * CH;
+}
+
+interface Pt { x: number; y: number }
+
+const on2: Pt[] = SEQ.map((n, k) => ({
+  x: xs[k],
+  y: yFromLog2(k === 0 ? 0 : 2 * Math.log2(n / BASE)),
+}));
+
+const onlogn: Pt[] = SEQ.map((n, k) => ({
+  x: xs[k],
+  y: yFromLog2(k === 0 ? 0 : Math.log2((n * Math.log2(n)) / (BASE * Math.log2(BASE)))),
+}));
+
+const on: Pt[] = SEQ.map((n, k) => ({
+  x: xs[k],
+  y: yFromLog2(k === 0 ? 0 : Math.log2(n / BASE)),
+}));
+
+function pts(arr: Pt[]): string {
+  return arr.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+}
+
+// Y-axis tick labels (log₂ values → "×N" annotation)
+const yTicks = [0, 4, 8, 12, 16];
+const yTickLabels = ['1×', '16×', '256×', '4096×', '65536×'];
+---
+
+<svg
+  width="100%"
+  viewBox={`0 0 ${W} ${H}`}
+  xmlns="http://www.w3.org/2000/svg"
+  style="display: block; max-width: 100%; margin: 2rem 0; overflow: visible;"
+  aria-label="Compute cost scaling: O(n²), O(n log n), and O(n) from 4K to 1M tokens on a log₂ scale"
+>
+  <!-- Axes -->
+  <line x1={CHART_X0} y1={CHART_Y0} x2={CHART_X0} y2={CHART_Y1}
+        stroke="var(--border)" stroke-width="1" />
+  <line x1={CHART_X0} y1={CHART_Y1} x2={CHART_X1} y2={CHART_Y1}
+        stroke="var(--border)" stroke-width="1" />
+
+  <!-- Y gridlines and labels -->
+  {yTicks.map((logVal, i) => {
+    const y = yFromLog2(logVal);
+    return (
+      <g>
+        <line x1={CHART_X0} y1={y} x2={CHART_X1} y2={y}
+              stroke="var(--border)" stroke-width="0.5" stroke-dasharray="3 3" />
+        <text x={CHART_X0 - 6} y={y + 4}
+              text-anchor="end" font-family="var(--font-mono)"
+              font-size="9" fill="var(--text-muted)">{yTickLabels[i]}</text>
+      </g>
+    );
+  })}
+
+  <!-- X tick labels -->
+  {xs.map((x, k) => (
+    <text x={x} y={CHART_Y1 + 14}
+          text-anchor="middle" font-family="var(--font-sans)"
+          font-size="9" fill="var(--text-muted)">{LABELS[k]}</text>
+  ))}
+
+  <!-- Axis labels -->
+  <text x={CHART_X0 - 42} y={(CHART_Y0 + CHART_Y1) / 2}
+        text-anchor="middle" font-family="var(--font-sans)" font-size="10"
+        fill="var(--text-muted)"
+        transform={`rotate(-90, ${CHART_X0 - 42}, ${(CHART_Y0 + CHART_Y1) / 2})`}>
+    Relative compute (log₂)
+  </text>
+  <text x={(CHART_X0 + CHART_X1) / 2} y={CHART_Y1 + 28}
+        text-anchor="middle" font-family="var(--font-sans)" font-size="10"
+        fill="var(--text-muted)">Sequence length</text>
+
+  <!-- O(n²) curve — red -->
+  <polyline points={pts(on2)} fill="none" stroke="#ef4444" stroke-width="2" stroke-linejoin="round" />
+  <!-- O(n log n) curve — orange -->
+  <polyline points={pts(onlogn)} fill="none" stroke="#f97316" stroke-width="2" stroke-linejoin="round" />
+  <!-- O(n) curve — green -->
+  <polyline points={pts(on)} fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linejoin="round" />
+
+  <!-- Legend -->
+  <line x1={CHART_X1 + 14} y1={60} x2={CHART_X1 + 34} y2={60}
+        stroke="#ef4444" stroke-width="2" />
+  <text x={CHART_X1 + 38} y={64} font-family="var(--font-mono)"
+        font-size="10" fill="var(--text-muted)">O(n²)</text>
+
+  <line x1={CHART_X1 + 14} y1={82} x2={CHART_X1 + 34} y2={82}
+        stroke="#f97316" stroke-width="2" />
+  <text x={CHART_X1 + 38} y={86} font-family="var(--font-mono)"
+        font-size="10" fill="var(--text-muted)">O(n log n)</text>
+
+  <line x1={CHART_X1 + 14} y1={104} x2={CHART_X1 + 34} y2={104}
+        stroke="#22c55e" stroke-width="2.5" />
+  <text x={CHART_X1 + 38} y={108} font-family="var(--font-mono)"
+        font-size="10" fill="var(--text-muted)">O(n)</text>
+</svg>
