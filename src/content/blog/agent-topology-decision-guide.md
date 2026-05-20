@@ -5,7 +5,7 @@ date: 2026-05-19
 tags: ["AI agents", "multi-agent systems", "LLM", "software architecture", "harness engineering"]
 ---
 
-Most debates about multi-agent systems start with the wrong question: which model should each agent use? The real question is how the agents are wired together. Pick the wrong topology and you get coordination overhead you can't debug, silent failures that look like success, or agents that burn tokens in reactive loops without ever converging.
+Most debates about multi-agent systems start with the wrong question: which model should each agent use? The real question is how the agents are wired together. Pick the wrong topology and you get coordination overhead you can't debug, or silent failures that look like success. Worst case: agents burn tokens in reactive loops and never converge.
 
 This post is a synthesis of a presentation by [Alex Koren](https://www.linkedin.com/in/alexekoren/) on agent harness architectures. It covers five design patterns, a decision guide for choosing between them, and the failure modes each one introduces.
 
@@ -13,7 +13,7 @@ This post is a synthesis of a presentation by [Alex Koren](https://www.linkedin.
 
 Before choosing a topology, justify the investment. Three distinct problems make multi-agent systems worth their coordination cost.
 
-**Context protection.** A task that fills the main context window with data only that task needs pollutes the reasoning environment for everything else. Run that task in a subagent and return a 50-token summary. The main agent stays clean.
+**Context protection.** A task that fills the main context window with data only that task needs pollutes the reasoning environment for everything else. Run that task in a subagent — a separate, isolated agent instance — and return a 50-token summary. The main agent stays clean.
 
 **Specialization.** Some tasks have conflicting requirements — different personas, different tool permissions, different system constraints. A single agent cannot hold contradictory instructions without degrading. Separate agents can each be configured for one job.
 
