@@ -5,7 +5,7 @@ date: 2026-05-19
 tags: ["AI agents", "multi-agent systems", "LLM", "software architecture", "harness engineering"]
 ---
 
-Most debates about multi-agent systems start with the wrong question: which model should each agent use? The real question is how the agents are wired together. Pick the wrong topology and you get coordination overhead you can't debug, silent failures that look like success, or reactive loops that never converge.
+Most debates about multi-agent systems start with the wrong question: which model should each agent use? The real question is how the agents are wired together. Pick the wrong topology and you get coordination overhead you can't debug, silent failures that look like success, or agents that burn tokens in reactive loops without ever converging.
 
 This post is a synthesis of a presentation by [Alex Koren](https://www.linkedin.com/in/alexekoren/) on agent harness architectures. It covers five design patterns, a decision guide for choosing between them, and the failure modes each one introduces.
 
