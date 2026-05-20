@@ -27,7 +27,7 @@ The practical rule that follows from these three: *divide the work by context, n
 
 One agent controls everything. The orchestrator receives the task, breaks it into subtasks, dispatches each to a worker agent, and collects results. Workers do not communicate with each other — all coordination flows through the center.
 
-**Canonical use case:** A customer support pipeline. The orchestrator receives an inbound message and dispatches specialized agents: one to identify intent, one to pull relevant knowledge, one to draft a response, one to approve it. Each worker sees only its slice of the problem.
+**Canonical use case:** A customer support pipeline. The orchestrator receives an inbound message and dispatches a classification agent to identify intent, a retrieval agent to pull relevant knowledge, a response agent to draft an answer, and a quality agent to approve it. Each worker sees only its slice of the problem.
 
 **Use when:**
 - The workflow is predetermined and sequential
