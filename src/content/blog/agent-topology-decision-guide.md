@@ -57,6 +57,20 @@ One agent generates a candidate output. A second agent verifies whether it meets
 
 ### 3. Agent Team
 
+Multiple agents work in parallel on non-overlapping subtasks. A coordinator assigns work and collects results, but agents do not share state or communicate with each other during execution. Each agent works in isolation.
+
+**Canonical use case:** Codebase migration. A coordinator identifies 20 modules to migrate. It assigns each module to a separate agent. Each agent migrates its module independently, with no awareness of what the others are doing. The coordinator collects and integrates the results.
+
+**Use when:**
+- Tasks are genuinely independent — no shared resources, no shared state, no ordering dependencies
+- Work is long-running and isolation improves reliability (a failure in one agent does not cascade)
+- The problem space is too large for one agent's context window
+
+**Avoid when:**
+- Tasks share a resource (a database, a file, a config) — contention will corrupt results or cause failures
+- The coordination overhead exceeds the parallelization gain for small task counts
+- One agent's output is another agent's input — that dependency makes this an orchestration problem, not a team problem
+
 ### 4. Message Bus
 
 ### 5. Shared State
