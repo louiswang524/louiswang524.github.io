@@ -25,6 +25,20 @@ The practical rule that follows from these three: *divide the work by context, n
 
 ### 1. Orchestration Agent
 
+One agent controls everything. The orchestrator receives the task, breaks it into subtasks, dispatches each to a worker agent, and collects results. Workers do not communicate with each other — all coordination flows through the center.
+
+**Canonical use case:** A customer support pipeline. The orchestrator receives an inbound message and dispatches specialized agents: one to identify intent, one to pull relevant knowledge, one to draft a response, one to approve it. Each worker sees only its slice of the problem.
+
+**Use when:**
+- The workflow is predetermined and sequential
+- You need a single point of accountability for auditing or debugging
+- Worker tasks have clear input/output contracts and no dependency on each other
+
+**Avoid when:**
+- The orchestrator itself becomes a bottleneck (high-throughput systems with many concurrent tasks)
+- Tasks are truly independent and gain nothing from central routing
+- Failure of the orchestrator takes down the entire pipeline
+
 ### 2. Generator-Verifier
 
 ### 3. Agent Team
