@@ -41,6 +41,20 @@ One agent controls everything. The orchestrator receives the task, breaks it int
 
 ### 2. Generator-Verifier
 
+One agent generates a candidate output. A second agent verifies whether it meets the acceptance criterion. If it fails, the generator tries again — with the verifier's feedback in context. The loop runs until the output passes or a budget (token or iteration) is exhausted.
+
+**Canonical use case:** Web search. A generator agent proposes a search query and synthesizes results. A verifier agent checks whether the answer actually addresses the original question. If not, the generator reformulates the query. The loop converges on a grounded answer.
+
+**Use when:**
+- Output quality is binary or near-binary (correct / incorrect, safe / unsafe)
+- Verification is significantly cheaper than generation
+- You have a clear, automatable acceptance criterion the verifier can apply
+
+**Avoid when:**
+- The verifier is weak — a poor verifier just rubber-stamps bad output and the loop provides false confidence
+- There is no clear acceptance criterion, so the loop has no exit condition
+- Verification cost is comparable to generation cost, making iteration prohibitively expensive
+
 ### 3. Agent Team
 
 ### 4. Message Bus
