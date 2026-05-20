@@ -89,6 +89,20 @@ There is no central coordinator. Agents publish events to a shared bus and subsc
 
 ### 5. Shared State
 
+Agents write their findings directly to a shared store — a document, a knowledge base, a structured log — that is visible to all agents immediately. There is no routing layer. The accumulated state is the output.
+
+**Canonical use case:** Research synthesis. A coordinator spawns agents to explore different angles of a research question. Each agent reads the shared document as it grows, builds on what others have written, and adds its own findings. The final document is a synthesis no single agent could have produced alone.
+
+**Use when:**
+- The output is accumulated knowledge, not a single decision or verified answer
+- Agents benefit from seeing each other's findings in real time
+- The value of the system comes from combination, not from any individual agent's output
+
+**Avoid when:**
+- Agents reactively respond to each other's writes and trigger further writes — this creates feedback loops that burn tokens without converging
+- There is no convergence criterion — the system needs an explicit stopping condition (iteration limit, quality threshold, human review gate)
+- Write conflicts produce inconsistent state — concurrent writes to the same section require a coordination mechanism the pattern does not provide by default
+
 ## How to Choose
 
 ## Closing
