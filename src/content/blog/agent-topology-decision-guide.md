@@ -73,6 +73,20 @@ Multiple agents work in parallel on non-overlapping subtasks. A coordinator assi
 
 ### 4. Message Bus
 
+There is no central coordinator. Agents publish events to a shared bus and subscribe to the topics they care about. The workflow is not hardcoded — it emerges from the event subscriptions. Adding a new agent means wiring up its subscriptions, not rewriting the orchestration logic.
+
+**Canonical use case:** Security operations. An alert fires and an agent publishes a `new-alert` event. A triage agent subscribed to that topic picks it up, assesses severity, and publishes a `triaged-alert` event. An enrichment agent subscribed to high-severity alerts fetches threat intelligence and publishes an `enriched-alert` event. Each agent is unaware of the others — it only knows its input topic and output topic.
+
+**Use when:**
+- The agent ecosystem is growing and the relationships between agents are still evolving
+- The workflow is not fully predetermined — new agents should be able to join without rewiring existing ones
+- Loose coupling between agents matters more than execution traceability
+
+**Avoid when:**
+- You need deterministic execution order that is easy to audit
+- Silent misroutes are dangerous — a misconfigured subscription means an agent never fires, with no error
+- Cascade failures are hard to diagnose — an event that triggers three downstream agents can produce failures that are difficult to trace to a root cause
+
 ### 5. Shared State
 
 ## How to Choose
