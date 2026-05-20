@@ -124,4 +124,18 @@ A verified answer — correct code, a confirmed fact, an approved response — s
 | Message Bus | Decoupled | Event stream | Growing event-driven ecosystems | Silent misroutes, cascade failures |
 | Shared State | Coupled to store | Accumulated findings | Research synthesis | Reactive loops, no convergence |
 
-## Closing
+## The Bet You're Making
+
+Choosing a topology is an architectural bet. It determines what your system can absorb as it grows — new agents, new failure modes, new scale requirements. A message bus that handles 10 agents gracefully may produce untraceable cascades at 50. A shared-state system that converges cleanly in a research context may never converge when agents start responding to each other's writes.
+
+Choose based on where your system is most likely to break, not on which pattern feels most elegant. The patterns are not a ranking — there is no best topology. There is only the right topology for your failure mode tolerance, your debugging requirements, and the independence structure of your tasks.
+
+---
+
+## References
+
+- [Alex Koren](https://www.linkedin.com/in/alexekoren/) — presentation on agent harness architectures and optimizations
+- Related posts on this blog:
+  - [The Harness Is the Moat](/blog/harness-is-the-moat)
+  - [The Agent Harness Pattern: What Poker Taught Me](/blog/agent-harness-poker)
+  - [Multi-Agent Patterns: Swarm, Teammates, and the Coordinator](/blog/claude-code-multi-agent-patterns)
