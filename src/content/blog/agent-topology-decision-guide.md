@@ -105,4 +105,23 @@ Agents write their findings directly to a shared store — a document, a knowled
 
 ## How to Choose
 
+Three diagnostic questions narrow the field before you read the full pattern descriptions.
+
+**1. Is the workflow predetermined, or does it emerge from events?**
+If you can draw the sequence of steps before runtime, you're in orchestration, generator-verifier, or agent team territory. If the workflow depends on what each agent finds and publishes, look at message bus.
+
+**2. Do tasks share state, or are they fully independent?**
+Independent tasks point to agent team. Tasks that build on a shared artifact point to shared state. Tasks that flow through a central coordinator point to orchestration.
+
+**3. Is the output a verified answer, or accumulated findings?**
+A verified answer — correct code, a confirmed fact, an approved response — suggests generator-verifier. Accumulated findings — a research document, a threat report, an innovation brief — suggest shared state.
+
+| Pattern | Coupling | Output | Best for | Watch out for |
+|---|---|---|---|---|
+| Orchestration | Tight (via orchestrator) | Directed result | Linear, predictable pipelines | Orchestrator as bottleneck |
+| Generator-Verifier | Looped | Verified answer | Quality-gated output | Weak verifier approves bad output |
+| Agent Team | Loose | Parallel results | Long-running independent tasks | Shared resource contention |
+| Message Bus | Decoupled | Event stream | Growing event-driven ecosystems | Silent misroutes, cascade failures |
+| Shared State | Coupled to store | Accumulated findings | Research synthesis | Reactive loops, no convergence |
+
 ## Closing
